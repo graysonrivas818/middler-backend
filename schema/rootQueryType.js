@@ -29,7 +29,23 @@ const RootQuery = new GraphQLObjectType({
           
           // console.log('TEST', jwtMethod.verify(token, process.env.JWT_SECRET_VERIFY))
           
-          jwtMethod.verify(token, 'cGi4DH1HvpZRos4my9m2VYsc7hIjbR0Fi0J7el3K')
+          try {
+            jwtMethod.verify(token, 'cGi4DH1HvpZRos4my9m2VYsc7hIjbR0Fi0J7el3K')
+          } catch (jwtError) {
+            if (jwtError.name === 'JsonWebTokenError') {
+              throw new GraphQLError('Malformed or missing token. Please log in again.', {
+                extensions: { code: 'INVALID_TOKEN' },
+              });
+            } else if (jwtError.name === 'TokenExpiredError') {
+              throw new GraphQLError('Session expired. Please log in again.', {
+                extensions: { code: 'SESSION_EXPIRED' },
+              });
+            } else {
+              throw new GraphQLError('Authentication error. Please log in again.', {
+                extensions: { code: 'AUTH_ERROR' },
+              });
+            }
+          }
 
           const user = await User.findById(id).populate([{ path: 'clients' }, { path: 'payments' }, { path: 'codes' }, { path: 'timeEstimates' }])
           
