@@ -322,7 +322,14 @@ UserSchema.statics.firstEstimate = async function( email, estimate ){
   let pin                 = generateSixDigitPin()
   let expirationDate      = new Date()
   expirationDate.setTime(expirationDate.getTime() + 15 * 60 * 1000)
-  
+
+  // Enforce clientEmail required
+  if (!estimate.clientEmail || !/^\S+@\S+\.\S+$/.test(estimate.clientEmail)) {
+    throw new GraphQLError('Client email is required and must be valid.', {
+      extensions: { code: 'BAD_USER_INPUT' },
+    });
+  }
+
   let userObject = {
     email: email.toLowerCase(),
     membershipID: newMembershipID,
@@ -384,39 +391,11 @@ UserSchema.statics.firstEstimate = async function( email, estimate ){
   }
   
   try {
-    
-    const checkEmail = await this.findOne({ email: email.toLowerCase() })
-
-    if (checkEmail) {
-
-      let array                                       = []
-      if(checkEmail.clients.length > 0) array         = [...checkEmail.clients]
-
-      const client                                    = await new Client({ ...clientObject }).save()
-      array.push(client.id)
-
-      checkEmail.clients                              = array
-      checkEmail.save()
-
-      CODE                                            = 'ACCOUNT_EXISTS'
-      CLIENT                                          = client.id
-      
-      throw new GraphQLError(`User with that email already exists, login to continue`, {
-        extensions: {
-          code: CODE,
-          client: CLIENT
-        },
-      })
-
-    }
-
+    // Always save a new client and user, do not check for existing email
     const client  = await new Client({ ...clientObject }).save()
-    
     let array       = []
     array.push(client.id)
-
     userObject.clients    = array
-    
     const user    = await new this({ ...userObject }).save()
 
     const params              = verifyEmail( email.toLowerCase(), estimate.estimatorName ? estimate.estimatorName : `${user.firstName} ${user.lastName}`, estimate.estimatorName ? null : user.lastName, pin )

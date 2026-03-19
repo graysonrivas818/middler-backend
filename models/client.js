@@ -40,7 +40,14 @@ const Client = new Schema(
   },
   clientEmail: {
     type: String,
-    default: ''
+    required: [true, 'Client email is required'],
+    validate: {
+      validator: function(v) {
+        // Simple email regex
+        return /^\S+@\S+\.\S+$/.test(v);
+      },
+      message: props => `${props.value} is not a valid email!`
+    }
   },
   clientZipCode: {
     type: String,
