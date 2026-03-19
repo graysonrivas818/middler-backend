@@ -1353,7 +1353,7 @@ UserSchema.statics.activateAccount = async function( email, password ){
 
       userLoggedIn.id             = _id
       userLoggedIn.token          = token
-      userLoggedIn.username       = user.estimatorName ? user.estimatorName : `${user.firstName} ${user.lasstName}`
+      userLoggedIn.username       = user.estimatorName ? user.estimatorName : `${user.firstName} ${user.lastName}`
       userLoggedIn.emailVerified  = user.emailVerified
       userLoggedIn.message        = 'Logged in'
 
