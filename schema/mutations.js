@@ -321,6 +321,7 @@ const mutation = new GraphQLObjectType({
     createPromotion: {
       type: MessageType,
       args: {
+        token: { type: GraphQLString },
         type: { type: GraphQLString },
         code: { type: GraphQLString },
         plan: { type: GraphQLString },
@@ -328,9 +329,22 @@ const mutation = new GraphQLObjectType({
         description: { type: GraphQLString },
         affiliate: { type: GraphQLString }
       },
-      async resolve(parentValue, { type, code, plan, days, description, affiliate }){
+      async resolve(parentValue, { token, type, code, plan, days, description, affiliate }){
 
+        jwtMethod.verify(token, 'z6Oer9rdB8QR6q3rW9whyo9K30J7el3KA10841agJW')
         return Promotion.createPromotion( type, code, plan, days, description, affiliate )
+        
+      }
+    },
+    deletePromotion: {
+      type: MessageType,
+      args: {
+        id: { type: GraphQLString },
+        token: { type: GraphQLString }
+      },
+      async resolve(parentValue, { id, token }){
+
+        return Promotion.deletePromotion( id, token )
         
       }
     },
@@ -478,6 +492,18 @@ const mutation = new GraphQLObjectType({
         
         return User.adminLogin( email, password )
         
+      }
+    },
+    adminDeleteUser: {
+      type: MessageType,
+      args: {
+        id: { type: GraphQLString },
+        token: { type: GraphQLString }
+      },
+      async resolve(parentValue, { id, token }){
+
+        return User.adminDeleteUser( id, token )
+
       }
     },
     quickEstimate: {

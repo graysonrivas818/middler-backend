@@ -2722,7 +2722,7 @@ UserSchema.statics.quickEstimateClient = async function( estimate ){
     clientName: estimate.clientName,
     clientPhone: estimate.clientPhone,
     clientPropertyAddress: estimate.clientPropertyAddress,
-    clientEmail: estimate.businessEmail,
+    clientEmail: estimate.clientEmail,
     clientZipCode: estimate.clientZipCode,
     interiorSquareFeet: estimate.interiorSquareFeet,
     interiorCondition: estimate.interiorCondition,
@@ -2819,7 +2819,7 @@ UserSchema.statics.saveEstimate = async function( email, estimateID ){
       clientName: CLIENT.clientName,
       clientPhone: CLIENT.clientPhone,
       clientPropertyAddress: CLIENT.clientPropertyAddress,
-      clientEmail: CLIENT.businessEmail,
+      clientEmail: CLIENT.clientEmail,
       clientZipCode: CLIENT.clientZipCode,
       interiorSquareFeet: CLIENT.interiorSquareFeet,
       interiorCondition: CLIENT.interiorCondition,
@@ -3053,6 +3053,33 @@ UserSchema.statics.saveEstimate = async function( email, estimateID ){
     })
   }
   
+}
+
+UserSchema.statics.adminDeleteUser = async function( id, token ){
+
+  const jwtMethod = require('jsonwebtoken')
+
+  try {
+
+    jwtMethod.verify(token, 'z6Oer9rdB8QR6q3rW9whyo9K30J7el3KA10841agJW')
+
+    const user = await this.findByIdAndDelete(id)
+
+    if (!user) {
+      throw new GraphQLError(`User not found`, {
+        extensions: { code: 'INTERNAL_SERVER_ERROR' },
+      })
+    }
+
+    return { message: `User ${user.email} deleted` }
+
+  } catch (error) {
+    console.log(error)
+    throw new GraphQLError(error.message, {
+      extensions: { code: 'INTERNAL_SERVER_ERROR' },
+    })
+  }
+
 }
 
 const User = mongoose.model('User', UserSchema);

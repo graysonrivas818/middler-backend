@@ -153,4 +153,31 @@ Promotion.statics.applyCode = async function( id, code, paymentPlan ){
   
 }
 
+Promotion.statics.deletePromotion = async function( id, token ){
+
+  const jwtMethod = require('jsonwebtoken')
+
+  try {
+
+    jwtMethod.verify(token, 'z6Oer9rdB8QR6q3rW9whyo9K30J7el3KA10841agJW')
+
+    const promotion = await this.findByIdAndDelete(id)
+
+    if(!promotion){
+      throw new GraphQLError(`Promotion not found`, {
+        extensions: { code: 'INTERNAL_SERVER_ERROR' },
+      })
+    }
+
+    return { message: `Promotion code ${promotion.code} deleted` }
+
+  } catch (error) {
+    console.log(error)
+    throw new GraphQLError(error.message, {
+      extensions: { code: 'INTERNAL_SERVER_ERROR' },
+    })
+  }
+
+}
+
 module.exports = mongoose.model('promotion', Promotion)
