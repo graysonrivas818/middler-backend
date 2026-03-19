@@ -1,6 +1,6 @@
 exports.verifyEmail = (email, firstName, lastName, pin) => {
   return {
-    Source: `Middler <estimate@middler.com>`,
+    Source: `Middler <support@middler.com>`,
     Destination: {
       ToAddresses: [email],
     },

@@ -1,6 +1,6 @@
 exports.tempPassword = (email, name, password) => {
   return {
-    Source: `Middler <estimate@middler.com>`,
+    Source: `Middler <support@middler.com>`,
     Destination: {
       ToAddresses: [email],
     },
@@ -600,7 +600,7 @@ exports.tempPassword = (email, name, password) => {
                                                       <tr>
                                                       <td valign="top" class="pc-w620-align-center" align="left">
                                                         <div class="pc-font-alt pc-w620-align-center" style="line-height: 143%; letter-spacing: -0px; font-family: 'Outfit', Arial, Helvetica, sans-serif; font-size: 15px; font-weight: normal; font-variant-ligatures: normal; color: #ffffff; text-align: left; text-align-last: left;">
-                                                        <div><span>Feel free to reach out to us at </span><span style="font-weight: 700; font-style: italic; color: #ffffff;">estimate@middler.com</span><span> We open opportunities for all forms of business collaboration</span>
+                                                        <div><span>Feel free to reach out to us at </span><span style="font-weight: 700; font-style: italic; color: #ffffff;">support@middler.com</span><span> We open opportunities for all forms of business collaboration</span>
                                                         </div>
                                                         </div>
                                                       </td>

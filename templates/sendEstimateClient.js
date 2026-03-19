@@ -35,7 +35,7 @@ exports.sendEstimateClient = (
     : 'This is a no-reply email. Please contact us via our website or other provided methods.';
 
   return {
-    Source: `Middler <estimate@middler.com>`,
+    Source: `Middler <support@middler.com>`,
     Destination: {
       ToAddresses: [email],
       CcAddresses: ['estimates@middler.com'],

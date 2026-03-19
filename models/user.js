@@ -5,10 +5,16 @@ const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 const aws = require('aws-sdk')
 
+const awsAccessKeyId = process.env.AWS_ACCESS_KEY || process.env.AWS_ACCESS_KEY_ID;
+const awsSecretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
+const awsSessionToken = process.env.AWS_SESSION_TOKEN;
+const awsRegion = process.env.AWS_REGION || process.env.AWS_DEFAULT_REGION || 'us-west-1';
+
 aws.config.update({
-  accessKeyId: 'AKIA4HFUYSGRJ6UA42HD',
-  secretAccessKey: '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',
-  region: 'us-west-1'  
+  accessKeyId: awsAccessKeyId,
+  secretAccessKey: awsSecretAccessKey,
+  sessionToken: awsSessionToken,
+  region: awsRegion
 });
 
 const S3 = new aws.S3();
@@ -21,10 +27,11 @@ const jwtMethod = require('jsonwebtoken')
 //// SES
 const config = {
   credentials: {
-    accessKeyId: 'AKIA4HFUYSGRJ6UA42HD',
-    secretAccessKey: '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'
+    accessKeyId: awsAccessKeyId,
+    secretAccessKey: awsSecretAccessKey,
+    sessionToken: awsSessionToken
   },
-  region: 'us-west-1'
+  region: awsRegion
 }
 
 const ses = new SESClient(config)

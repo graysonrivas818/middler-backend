@@ -1,6 +1,6 @@
 exports.tempPasswordTwo = (email, password) => {
   return {
-    Source: `Middler <estimate@middler.com>`,
+    Source: `Middler <support@middler.com>`,
     Destination: {
       ToAddresses: [email],
     },
