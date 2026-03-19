@@ -1,6 +1,6 @@
 require('dotenv').config()
 const { GraphQLError } = require('graphql')
-const { SESClient, SendEmailCommand } = require("@aws-sdk/client-ses")
+const { SESClient, SendEmailCommand } = require('../helpers/sesCompat')
 const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 const aws = require('aws-sdk')

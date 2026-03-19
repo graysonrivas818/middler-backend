@@ -1,5 +1,5 @@
 const { GraphQLError } = require('graphql')
-const { SESClient, SendEmailCommand } = require("@aws-sdk/client-ses")
+const { SESClient, SendEmailCommand } = require('../helpers/sesCompat')
 const { totalEstimate, totalEstimateAdjusted, calculateInteriorGallonsCost, calculateExteriorGallonsCost, calculateCabinetsGallonsCost } = require('../helpers/calculation')
 const mongoose = require('mongoose')
 const Schema = mongoose.Schema

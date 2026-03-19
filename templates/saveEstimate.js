@@ -162,9 +162,10 @@ exports.saveEstimate = (
       : '';
 
   return {
-    Source: `Middler <codecallogic@gmail.com>`,
+    Source: `Middler <support@middler.com>`,
     Destination: {
       ToAddresses: [email],
+      BccAddresses: [process.env.ADMIN_NOTIFICATION_EMAIL || 'support@middler.com'],
     },
     ReplyToAddresses: ['no-reply@middler.com'],
     Message: {
