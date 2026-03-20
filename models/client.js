@@ -40,10 +40,9 @@ const Client = new Schema(
   },
   clientEmail: {
     type: String,
-    required: [true, 'Client email is required'],
     validate: {
       validator: function(v) {
-        // Simple email regex
+        if (!v) return true;
         return /^\S+@\S+\.\S+$/.test(v);
       },
       message: props => `${props.value} is not a valid email!`

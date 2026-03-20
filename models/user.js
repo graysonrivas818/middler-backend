@@ -2778,6 +2778,10 @@ UserSchema.statics.saveEstimate = async function( email, estimateID ){
   try {
 
     const CLIENT = await Client.findById( estimateID )
+    if (CLIENT && !CLIENT.clientEmail) {
+      CLIENT.clientEmail = email.toLowerCase()
+      await CLIENT.save()
+    }
 
     let userObject = {
       email: email.toLowerCase(),
