@@ -22,6 +22,17 @@ const Time                      = require('../models/time')
 const mutation = new GraphQLObjectType({
   name: 'Mutation',
   fields: {
+    resetAllEstimates: {
+      type: MessageType,
+      args: {
+        token: { type: GraphQLString }
+      },
+      async resolve(parentValue, { token }) {
+        // Optionally verify admin token here
+        // jwtMethod.verify(token, 'your_jwt_secret')
+        return Client.resetAllEstimates();
+      }
+    },
     signup: {
       type: UserType,
       args: {

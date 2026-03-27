@@ -1,3 +1,4 @@
+// ...existing code...
 const { GraphQLError } = require('graphql')
 const { SESClient, SendEmailCommand } = require('../helpers/sesCompat')
 const { totalEstimate, totalEstimateAdjusted, calculateInteriorGallonsCost, calculateExteriorGallonsCost, calculateCabinetsGallonsCost } = require('../helpers/calculation')
@@ -24,7 +25,7 @@ const { sendEstimateShort }           = require('../templates/sendEstimateShort'
 //// HELPERS
 const { calculateInteriorEstimate, calculateExteriorEstimate, calculateCabinetsEstimate } = require('../helpers/calculation')
 
-const Client = new Schema(
+const clientSchema = new Schema(
 {
   clientName: {
     type: String,
@@ -40,9 +41,10 @@ const Client = new Schema(
   },
   clientEmail: {
     type: String,
+    required: [true, 'Client email is required'],
     validate: {
       validator: function(v) {
-        if (!v) return true;
+        // Simple email regex
         return /^\S+@\S+\.\S+$/.test(v);
       },
       message: props => `${props.value} is not a valid email!`
@@ -210,7 +212,7 @@ const Client = new Schema(
     timestamps: true
 })
 
-Client.statics.addAdjustment = async function( id, interiorAdjusted, cabinetAdjusted, exteriorAdjusted, adjustment ){
+clientSchema.statics.addAdjustment = async function( id, interiorAdjusted, cabinetAdjusted, exteriorAdjusted, adjustment ){
 
   try {
 
@@ -244,7 +246,7 @@ Client.statics.addAdjustment = async function( id, interiorAdjusted, cabinetAdju
   
 }
 
-Client.statics.updateDisclosure = async function( id, notesAndDisclosure ){
+clientSchema.statics.updateDisclosure = async function( id, notesAndDisclosure ){
   
   try {
 
@@ -269,7 +271,7 @@ Client.statics.updateDisclosure = async function( id, notesAndDisclosure ){
 
 }
 
-Client.statics.sendEstimate = async function( userID, clientID, email, format ){
+clientSchema.statics.sendEstimate = async function( userID, clientID, email, format ){
 
   try {
 
@@ -447,7 +449,7 @@ Client.statics.sendEstimate = async function( userID, clientID, email, format ){
   
 }
 
-Client.statics.originalEstimate = async function( id, adjustment ){
+clientSchema.statics.originalEstimate = async function( id, adjustment ){
   
   try {
 
@@ -471,7 +473,7 @@ Client.statics.originalEstimate = async function( id, adjustment ){
   
 }
 
-Client.statics.updateEstimate = async function( userID, clientID, estimate ){
+clientSchema.statics.updateEstimate = async function( userID, clientID, estimate ){
   
   try {
     
@@ -539,7 +541,7 @@ Client.statics.updateEstimate = async function( userID, clientID, estimate ){
   
 }
 
-Client.statics.deleteEstimate = async function( id ){
+clientSchema.statics.deleteEstimate = async function( id ){
   
   try {
     
@@ -561,7 +563,7 @@ Client.statics.deleteEstimate = async function( id ){
   
 }
 
-Client.statics.getEstimate = async function( id, painter ){
+clientSchema.statics.getEstimate = async function( id, painter ){
 
   try {
     
@@ -585,7 +587,7 @@ Client.statics.getEstimate = async function( id, painter ){
   
 }
 
-Client.statics.getCalculations = async function( estimate ){
+clientSchema.statics.getCalculations = async function( estimate ){
 
   let updateClient  = new Object()
 
@@ -650,7 +652,7 @@ Client.statics.getCalculations = async function( estimate ){
   
 }
 
-Client.statics.getPaintCard = async function( id ){
+clientSchema.statics.getPaintCard = async function( id ){
 
   try {
     
@@ -671,7 +673,7 @@ Client.statics.getPaintCard = async function( id ){
   
 }
 
-Client.statics.applyGiftCard = async function( estimateID, where, why ){
+clientSchema.statics.applyGiftCard = async function( estimateID, where, why ){
 
   try {
 
@@ -696,4 +698,19 @@ Client.statics.applyGiftCard = async function( estimateID, where, why ){
   
 }
 
-module.exports = mongoose.model('client', Client)
+// Add static method to schema
+clientSchema.statics.resetAllEstimates = async function() {
+  try {
+    await this.deleteMany({});
+    return { message: 'All estimates have been deleted.' };
+  } catch (error) {
+    console.log(error);
+    throw new GraphQLError(error.message, {
+      extensions: {
+        code: 'INTERNAL_SERVER_ERROR',
+      },
+    });
+  }
+};
+
+module.exports = mongoose.model('client', clientSchema)
