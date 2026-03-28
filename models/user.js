@@ -2802,11 +2802,11 @@ UserSchema.statics.quickEstimateClient = async function( estimate ){
       console.log('Email send error in quickEstimateClient:', emailError);
     }
 
+    return { id: CLIENT._id.toString(), message }
+
   } catch (error) {
     console.log(error)
-    throw new GraphQLError(error.message, {
-      extensions: { code: 'INTERNAL_SERVER_ERROR' },
-    })
+    return { id: null, message: error.message || 'An error occurred' }
   }
 
 }
