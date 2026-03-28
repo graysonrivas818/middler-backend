@@ -15,6 +15,10 @@ function parseNumber(value) {
   return parseFloat(value.replace(/,/g, ''));
 }
 
+function asArray(value) {
+  return Array.isArray(value) ? value : [];
+}
+
 exports.calculateInteriorEstimate = async ( estimate ) => {
 
   if(!estimate.interiorSquareFeet) return 0
@@ -43,8 +47,9 @@ exports.calculateInteriorEstimate = async ( estimate ) => {
 
   
   let interiorItems   = []
+  const interiorItemsInput = asArray(estimate.interiorItems)
   
-  estimate.interiorItems.forEach((item) => interiorItems.push(item.type))
+  interiorItemsInput.forEach((item) => interiorItems.push(item.type))
   let interiorItemsNotSelected = interiorItemsToBePainted.filter((item) => !interiorItems.includes(item))
 
   let interiorItemConstant = 1
@@ -52,7 +57,7 @@ exports.calculateInteriorEstimate = async ( estimate ) => {
   interiorItemsNotSelected.forEach((item) => {
     
     let found                         = interiorItemsConstants.find((interior) => interior.type == item )
-    interiorItemConstant             -= found.multiplier
+    if(found) interiorItemConstant   -= found.multiplier
     
   })
 
@@ -70,8 +75,9 @@ exports.calculateInteriorEstimate = async ( estimate ) => {
   total = total * (1 + conditionDetailMultiplier)
 
   
-  if (estimate.interiorIndividualItems.length > 0) {
-    estimate.interiorIndividualItems.forEach((extra) => {
+  const interiorIndividualItems = asArray(estimate.interiorIndividualItems)
+  if (interiorIndividualItems.length > 0) {
+    interiorIndividualItems.forEach((extra) => {
       if (extra.price) {
         // Extract the number portion of the price
         const price = extra.price.includes('$') 
@@ -86,19 +92,24 @@ exports.calculateInteriorEstimate = async ( estimate ) => {
     });
   }
   
-  if(estimate.paintQuality.toLowerCase() == 'standard'){
+  const paintQuality = String(estimate.paintQuality || '').toLowerCase()
+  const paintBrandConfig = paintBrands.find((item) => item.type == estimate.paintBrand)
 
-    console.log('INTERIOR PAINT COLA', paintBrands.find((item) => item.type == estimate.paintBrand).standardInterior)
-    
-    if(paintBrands.find((item) => item.type == estimate.paintBrand)) total *= paintBrands.find((item) => item.type == estimate.paintBrand).standardInterior / 100
+  if(paintQuality == 'standard'){
+
+    if(paintBrandConfig) {
+      console.log('INTERIOR PAINT COLA', paintBrandConfig.standardInterior)
+      total *= paintBrandConfig.standardInterior / 100
+    }
     
   } 
 
-  if(estimate.paintQuality.toLowerCase() == 'premium'){
+  if(paintQuality == 'premium'){
 
-    console.log('INTERIOR PAINT COLA', paintBrands.find((item) => item.type == estimate.paintBrand).premiumInterior)
-
-    if(paintBrands.find((item) => item.type == estimate.paintBrand)) total *= paintBrands.find((item) => item.type == estimate.paintBrand).premiumInterior / 100
+    if(paintBrandConfig) {
+      console.log('INTERIOR PAINT COLA', paintBrandConfig.premiumInterior)
+      total *= paintBrandConfig.premiumInterior / 100
+    }
     
   }
 
@@ -152,8 +163,9 @@ exports.calculateExteriorEstimate = async ( estimate ) => {
   
 
   let exteriorItems   = []
+  const exteriorItemsInput = asArray(estimate.exteriorItems)
   
-  estimate.exteriorItems.forEach((item) => exteriorItems.push(item.type))
+  exteriorItemsInput.forEach((item) => exteriorItems.push(item.type))
   let exteriorItemsNotSelected = exteriorItemsToBePainted.filter((item) => !exteriorItems.includes(item))
 
   let exteriorItemConstant = 1
@@ -162,7 +174,7 @@ exports.calculateExteriorEstimate = async ( estimate ) => {
 
     let found                  = exteriorItemsConstants.find((exterior) => exterior.type == item )
     
-    exteriorItemConstant      -= found.multiplier
+    if(found) exteriorItemConstant -= found.multiplier
     
   })
   
@@ -178,8 +190,9 @@ exports.calculateExteriorEstimate = async ( estimate ) => {
 
   total = total * (1 + conditionDetailMultiplier)
   
-  if (estimate.exteriorIndividualItems.length > 0) {
-    estimate.exteriorIndividualItems.forEach((extra) => {
+  const exteriorIndividualItems = asArray(estimate.exteriorIndividualItems)
+  if (exteriorIndividualItems.length > 0) {
+    exteriorIndividualItems.forEach((extra) => {
       if (extra.price) {
         // Extract the number portion of the price
         const price = extra.price.includes('$') 
@@ -194,19 +207,24 @@ exports.calculateExteriorEstimate = async ( estimate ) => {
     });
   }
 
-  if(estimate.paintQuality.toLowerCase() == 'standard'){
+  const paintQuality = String(estimate.paintQuality || '').toLowerCase()
+  const paintBrandConfig = paintBrands.find((item) => item.type == estimate.paintBrand)
 
-    console.log('INTERIOR PAINT COLA', paintBrands.find((item) => item.type == estimate.paintBrand).standardExterior)
-    
-    if(paintBrands.find((item) => item.type == estimate.paintBrand)) total *= paintBrands.find((item) => item.type == estimate.paintBrand).standardExterior / 100
+  if(paintQuality == 'standard'){
+
+    if(paintBrandConfig) {
+      console.log('INTERIOR PAINT COLA', paintBrandConfig.standardExterior)
+      total *= paintBrandConfig.standardExterior / 100
+    }
     
   } 
   
-  if(estimate.paintQuality.toLowerCase() == 'premium'){
+  if(paintQuality == 'premium'){
 
-    console.log('INTERIOR PAINT COLA', paintBrands.find((item) => item.type == estimate.paintBrand).premiumExterior)
-    
-    if(paintBrands.find((item) => item.type == estimate.paintBrand)) total *= paintBrands.find((item) => item.type == estimate.paintBrand).premiumExterior / 100
+    if(paintBrandConfig) {
+      console.log('INTERIOR PAINT COLA', paintBrandConfig.premiumExterior)
+      total *= paintBrandConfig.premiumExterior / 100
+    }
     
   }
   
@@ -278,19 +296,24 @@ exports.calculateCabinetsEstimate = async ( estimate ) => {
   
   total = total * (1 + conditionDetailMultiplier)
 
-  if(estimate.paintQuality.toLowerCase() == 'standard'){
+  const paintQuality = String(estimate.paintQuality || '').toLowerCase()
+  const paintBrandConfig = paintBrands.find((item) => item.type == estimate.paintBrand)
 
-    console.log('INTERIOR PAINT COLA', paintBrands.find((item) => item.type == estimate.paintBrand).standardCabinets)
-    
-    if(paintBrands.find((item) => item.type == estimate.paintBrand)) total *= paintBrands.find((item) => item.type == estimate.paintBrand).standardCabinets / 100
+  if(paintQuality == 'standard'){
+
+    if(paintBrandConfig) {
+      console.log('INTERIOR PAINT COLA', paintBrandConfig.standardCabinets)
+      total *= paintBrandConfig.standardCabinets / 100
+    }
     
   } 
   
-  if(estimate.paintQuality.toLowerCase() == 'premium'){
+  if(paintQuality == 'premium'){
 
-    console.log('INTERIOR PAINT COLA', paintBrands.find((item) => item.type == estimate.paintBrand).premiumCabinets)
-    
-    if(paintBrands.find((item) => item.type == estimate.paintBrand)) total *= paintBrands.find((item) => item.type == estimate.paintBrand).premiumCabinets / 100
+    if(paintBrandConfig) {
+      console.log('INTERIOR PAINT COLA', paintBrandConfig.premiumCabinets)
+      total *= paintBrandConfig.premiumCabinets / 100
+    }
     
   }
 
@@ -348,13 +371,15 @@ exports.calculateInteriorGallonsCost = (estimate) => {
     return total
   }
 
-  if(estimate.interiorItems.length == 0){
+  const interiorItems = asArray(estimate.interiorItems)
+  if(interiorItems.length == 0){
     return total
   }
   
-  estimate.interiorItems.forEach((item) => {
+  interiorItems.forEach((item) => {
 
     const factor          = interiorGallonsConstants.find( (index) => item.type == index.type)
+    if(!factor) return
 
     let required            = new Object()
     required.type           = item.type
@@ -383,13 +408,15 @@ exports.calculateExteriorGallonsCost = (estimate) => {
     return total
   }
 
-  if(estimate.exteriorItems.length == 0){
+  const exteriorItems = asArray(estimate.exteriorItems)
+  if(exteriorItems.length == 0){
     return total
   }
   
-  estimate.exteriorItems.forEach((item) => {
+  exteriorItems.forEach((item) => {
 
     const factor          = exteriorGallonsConstants.find( (index) => item.type == index.type)
+    if(!factor) return
 
     let required            = new Object()
     required.type           = item.type
