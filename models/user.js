@@ -2749,7 +2749,999 @@ UserSchema.statics.quickEstimateClient = async function( estimate ){
     CLIENT                                          = await new Client({ ...clientObject }).save()
 
     message = 'Estimate generated'
+
+    // Send estimate email to client
+    try {
+      const interiorEstRaw = clientObject.interiorEstimate ? String(clientObject.interiorEstimate) : '0'
+      const exteriorEstRaw = clientObject.exteriorEstimate ? String(clientObject.exteriorEstimate) : '0'
+      const cabinetEstRaw  = clientObject.cabinetEstimate  ? String(clientObject.cabinetEstimate)  : '0'
+
+      const interiorTotal = clientObject.adjustment
+        ? String(clientObject.interiorAdjusted || '0').replace('
     
+  } catch (error) {
+    console.log(error)
+    throw new GraphQLError(error.message, {
+      extensions: {
+        code: 'INTERNAL_SERVER_ERROR',
+      },
+    });
+  }
+  
+}
+
+UserSchema.statics.saveEstimate = async function( email, estimateID ){
+
+  let CODE                = 'INTERNAL_SERVER_ERROR'
+  let CLIENT
+  let newMembershipID     = generateRandomNumber()
+  let pin                 = generateSixDigitPin()
+  let expirationDate      = new Date()
+  expirationDate.setTime(expirationDate.getTime() + 15 * 60 * 1000)
+  
+  try {
+
+    const CLIENT = await Client.findById( estimateID )
+
+    let userObject = {
+      email: email.toLowerCase(),
+      membershipID: newMembershipID,
+      verificationCode: pin,
+      codeExpiration: expirationDate.toISOString(),
+      businessName: CLIENT.businessName,
+      estimatorName: CLIENT.estimatorName,
+      businessAddress: CLIENT.businessAddress,
+      businessPhone: CLIENT.businessPhone,
+      businessEmail: CLIENT.businessEmail,
+      businessWebsite: CLIENT.businessWebsite,
+      businessLicenseNumber: CLIENT.businessLicenseNumber,
+      businessInstagram: CLIENT.businessInstagram
+    }
+
+    let clientObject = {
+      clientName: CLIENT.clientName,
+      clientPhone: CLIENT.clientPhone,
+      clientPropertyAddress: CLIENT.clientPropertyAddress,
+      clientEmail: CLIENT.clientEmail,
+      clientZipCode: CLIENT.clientZipCode,
+      interiorSquareFeet: CLIENT.interiorSquareFeet,
+      interiorCondition: CLIENT.interiorCondition,
+      interiorDetail: CLIENT.interiorDetail,
+      interiorItems: CLIENT.interiorItems,
+      interiorIndividualItems: CLIENT.interiorIndividualItems,
+      interiorEstimate: await calculateInteriorEstimate(CLIENT),
+      interiorGallons: calculateInteriorGallonsCost(CLIENT).gallons,
+      interiorGallonsCost: calculateInteriorGallonsCost(CLIENT).gallonsCost,
+      interiorGallonsItems: calculateInteriorGallonsCost(CLIENT).gallonsRequired,
+      doorsAndDrawers: CLIENT.doorsAndDrawers,
+      insideCabinet: CLIENT.insideCabinet,
+      cabinetCondition: CLIENT.cabinetCondition,
+      cabinetDetail: CLIENT.cabinetDetail,
+      cabinetEstimate: await calculateCabinetsEstimate(CLIENT),
+      cabinetGallons: calculateCabinetsGallonsCost(CLIENT).gallons,
+      cabinetGallonsCost: calculateCabinetsGallonsCost(CLIENT).gallonsCost,
+      exteriorSquareFeet: CLIENT.exteriorSquareFeet,
+      exteriorCondition: CLIENT.exteriorCondition,
+      exteriorDetail: CLIENT.exteriorDetail,
+      exteriorItems: CLIENT.exteriorItems,
+      exteriorIndividualItems: CLIENT.exteriorIndividualItems,
+      exteriorEstimate: await calculateExteriorEstimate(CLIENT),
+      exteriorGallons: calculateExteriorGallonsCost(CLIENT).gallons,
+      exteriorGallonsCost: calculateExteriorGallonsCost(CLIENT).gallonsCost,
+      exteriorGallonsItems: calculateExteriorGallonsCost(CLIENT).gallonsRequired,
+      painters: CLIENT.painters,
+      hoursPerDay: CLIENT.hoursPerDay,
+      days: CLIENT.days,
+      paintBrand: CLIENT.paintBrand,
+      paintQuality: CLIENT.paintQuality,
+      warranty: CLIENT.warranty,
+      payments: CLIENT.payments,
+      deposit: CLIENT.deposit,
+      depositType: CLIENT.depositType,
+      painterTapeRolls: CLIENT.painterTapeRolls,
+      plasticRolls: CLIENT.plasticRolls,
+      dropCloths: CLIENT.dropCloths,
+      adjustment: CLIENT.adjustment,
+      userType: CLIENT.userType
+    }
+    
+    const checkEmail = await this.findOne({ email: email.toLowerCase() })
+
+    if (checkEmail) {
+
+      let array                                       = []
+      if(checkEmail.clients.length > 0) array         = [...checkEmail.clients]
+      array.push(CLIENT.id)
+
+      checkEmail.clients                              = array
+      checkEmail.save()
+
+      const params    = saveEstimate( 
+        'https://middler.com',
+        email,
+        clientObject.adjustment 
+          ? 
+            clientObject.interiorAdjusted.replace('$', '')
+          : 
+          clientObject.interiorEstimate
+            ?
+            `${parseInt(clientObject.interiorEstimate.replace(/,/g, ''), 10).toLocaleString('en-US', { maximumFractionDigits: 0 })}`
+            :
+            '0'
+          , 
+        clientObject.adjustment 
+          ? 
+            clientObject.exteriorAdjusted.replace('$', '')
+          : 
+          clientObject.exteriorEstimate
+            ?
+            `${parseInt(clientObject.exteriorEstimate.replace(/,/g, ''), 10).toLocaleString('en-US', { maximumFractionDigits: 0 })}`
+            :
+            '0'
+          ,
+        clientObject.adjustment 
+          ? 
+            clientObject.cabinetAdjusted.replace('$', '')
+          : 
+            clientObject.cabinetEstimate
+            ?
+            `${parseInt(clientObject.cabinetEstimate.replace(/,/g, ''), 10).toLocaleString('en-US', { maximumFractionDigits: 0 })}`
+            :
+            '0'
+          ,
+        clientObject.adjustment 
+          ? `${totalEstimateAdjustedNewEstimate(clientObject)}` 
+          : `${parseInt(totalEstimate(clientObject).replace(/,/g, ''), 10).toLocaleString('en-US', { maximumFractionDigits: 0 })}`,
+        clientObject.clientName,
+        clientObject.clientPhone ? clientObject.clientPhone.replace('+1', '') : '',
+        clientObject.clientEmail,
+        clientObject.clientPropertyAddress,
+        clientObject.notesAndDisclosure ? clientObject.notesAndDisclosure : '',
+        clientObject.interiorSquareFeet,
+        clientObject.interiorCondition?.replace(/_/g, ' ')
+        .replace(/\b\w/g, (c) => c.toUpperCase()),
+        clientObject.interiorDetail?.replace(/_/g, ' ')
+        .replace(/\b\w/g, (c) => c.toUpperCase()),
+        clientObject.interiorItems,
+        clientObject.interiorIndividualItems,
+        clientObject.doorsAndDrawers,
+        clientObject.insideCabinet,
+        clientObject.cabinetCondition?.replace(/_/g, ' ')
+        .replace(/\b\w/g, (c) => c.toUpperCase()),
+        clientObject.cabinetDetail?.replace(/_/g, ' ')
+        .replace(/\b\w/g, (c) => c.toUpperCase()),
+        clientObject.exteriorSquareFeet,
+        clientObject.exteriorCondition?.replace(/_/g, ' ')
+        .replace(/\b\w/g, (c) => c.toUpperCase()),
+        clientObject.exteriorDetail?.replace(/_/g, ' ')
+        .replace(/\b\w/g, (c) => c.toUpperCase()),
+        clientObject.exteriorItems,
+        clientObject.exteriorIndividualItems,
+        clientObject.paintBrand,
+        clientObject.paintQuality,
+        clientObject.warranty,
+        clientObject.payments,
+        null,
+        clientObject.painterTapeRolls,
+        clientObject.plasticRolls,
+        clientObject.dropCloths
+      )
+
+      const command   = new SendEmailCommand(params)
+      const response  = await ses.send(command)
+
+      console.log(response)
+
+      CODE = 'ACCOUNT_EXISTS'
+      
+      throw new GraphQLError(`User with that email already exists estimate saved to account`, {
+        extensions: {
+          code: CODE
+        },
+      })
+
+    }
+
+    let array       = []
+    array.push(CLIENT.id)
+
+    userObject.clients    = array
+    
+    const user    = await new this({ ...userObject }).save()
+
+    const params    = saveEstimate( 
+      'https://middler.com',
+      email,
+      clientObject.adjustment 
+        ? 
+          clientObject.interiorAdjusted.replace('$', '')
+        : 
+        clientObject.interiorEstimate
+          ?
+          `${parseInt(clientObject.interiorEstimate.replace(/,/g, ''), 10).toLocaleString('en-US', { maximumFractionDigits: 0 })}`
+          :
+          '0'
+        , 
+      clientObject.adjustment 
+        ? 
+          clientObject.exteriorAdjusted.replace('$', '')
+        : 
+        clientObject.exteriorEstimate
+          ?
+          `${parseInt(clientObject.exteriorEstimate.replace(/,/g, ''), 10).toLocaleString('en-US', { maximumFractionDigits: 0 })}`
+          :
+          '0'
+        ,
+      clientObject.adjustment 
+        ? 
+          clientObject.cabinetAdjusted.replace('$', '')
+        : 
+          clientObject.cabinetEstimate
+          ?
+          `${parseInt(clientObject.cabinetEstimate.replace(/,/g, ''), 10).toLocaleString('en-US', { maximumFractionDigits: 0 })}`
+          :
+          '0'
+        ,
+      clientObject.adjustment 
+        ? `${totalEstimateAdjustedNewEstimate(clientObject)}` 
+        : `${parseInt(totalEstimate(clientObject).replace(/,/g, ''), 10).toLocaleString('en-US', { maximumFractionDigits: 0 })}`,
+      clientObject.clientName,
+      clientObject.clientPhone ? clientObject.clientPhone.replace('+1', '') : '',
+      clientObject.clientEmail,
+      clientObject.clientPropertyAddress,
+      clientObject.notesAndDisclosure ? clientObject.notesAndDisclosure : '',
+      clientObject.interiorSquareFeet,
+      clientObject.interiorCondition?.replace(/_/g, ' ')
+      .replace(/\b\w/g, (c) => c.toUpperCase()),
+      clientObject.interiorDetail?.replace(/_/g, ' ')
+      .replace(/\b\w/g, (c) => c.toUpperCase()),
+      clientObject.interiorItems,
+      clientObject.interiorIndividualItems,
+      clientObject.doorsAndDrawers,
+      clientObject.insideCabinet,
+      clientObject.cabinetCondition?.replace(/_/g, ' ')
+      .replace(/\b\w/g, (c) => c.toUpperCase()),
+      clientObject.cabinetDetail?.replace(/_/g, ' ')
+      .replace(/\b\w/g, (c) => c.toUpperCase()),
+      clientObject.exteriorSquareFeet,
+      clientObject.exteriorCondition?.replace(/_/g, ' ')
+      .replace(/\b\w/g, (c) => c.toUpperCase()),
+      clientObject.exteriorDetail?.replace(/_/g, ' ')
+      .replace(/\b\w/g, (c) => c.toUpperCase()),
+      clientObject.exteriorItems,
+      clientObject.exteriorIndividualItems,
+      clientObject.paintBrand,
+      clientObject.paintQuality,
+      clientObject.warranty,
+      clientObject.payments,
+      null,
+      clientObject.painterTapeRolls,
+      clientObject.plasticRolls,
+      clientObject.dropCloths
+    )
+
+    const command   = new SendEmailCommand(params)
+    const response  = await ses.send(command)
+
+    console.log(response)
+
+    return { message: `Account created estimate sent to your email`}
+    
+  } catch (error) {
+    console.log(error)
+    throw new GraphQLError(error.message, {
+      extensions: {
+        code: CODE
+      },
+    })
+  }
+  
+}
+
+UserSchema.statics.adminDeleteUser = async function( id, token ){
+
+  const jwtMethod = require('jsonwebtoken')
+
+  try {
+
+    jwtMethod.verify(token, 'z6Oer9rdB8QR6q3rW9whyo9K30J7el3KA10841agJW')
+
+    const user = await this.findByIdAndDelete(id)
+
+    if (!user) {
+      throw new GraphQLError(`User not found`, {
+        extensions: { code: 'INTERNAL_SERVER_ERROR' },
+      })
+    }
+
+    return { message: `User ${user.email} deleted` }
+
+  } catch (error) {
+    console.log(error)
+    throw new GraphQLError(error.message, {
+      extensions: { code: 'INTERNAL_SERVER_ERROR' },
+    })
+  }
+
+}
+
+const User = mongoose.model('User', UserSchema);
+
+module.exports = User, '')
+        : `${parseInt(interiorEstRaw.replace(/,/g, ''), 10).toLocaleString('en-US', { maximumFractionDigits: 0 })}`
+      const exteriorTotal = clientObject.adjustment
+        ? String(clientObject.exteriorAdjusted || '0').replace('
+    
+  } catch (error) {
+    console.log(error)
+    throw new GraphQLError(error.message, {
+      extensions: {
+        code: 'INTERNAL_SERVER_ERROR',
+      },
+    });
+  }
+  
+}
+
+UserSchema.statics.saveEstimate = async function( email, estimateID ){
+
+  let CODE                = 'INTERNAL_SERVER_ERROR'
+  let CLIENT
+  let newMembershipID     = generateRandomNumber()
+  let pin                 = generateSixDigitPin()
+  let expirationDate      = new Date()
+  expirationDate.setTime(expirationDate.getTime() + 15 * 60 * 1000)
+  
+  try {
+
+    const CLIENT = await Client.findById( estimateID )
+
+    let userObject = {
+      email: email.toLowerCase(),
+      membershipID: newMembershipID,
+      verificationCode: pin,
+      codeExpiration: expirationDate.toISOString(),
+      businessName: CLIENT.businessName,
+      estimatorName: CLIENT.estimatorName,
+      businessAddress: CLIENT.businessAddress,
+      businessPhone: CLIENT.businessPhone,
+      businessEmail: CLIENT.businessEmail,
+      businessWebsite: CLIENT.businessWebsite,
+      businessLicenseNumber: CLIENT.businessLicenseNumber,
+      businessInstagram: CLIENT.businessInstagram
+    }
+
+    let clientObject = {
+      clientName: CLIENT.clientName,
+      clientPhone: CLIENT.clientPhone,
+      clientPropertyAddress: CLIENT.clientPropertyAddress,
+      clientEmail: CLIENT.clientEmail,
+      clientZipCode: CLIENT.clientZipCode,
+      interiorSquareFeet: CLIENT.interiorSquareFeet,
+      interiorCondition: CLIENT.interiorCondition,
+      interiorDetail: CLIENT.interiorDetail,
+      interiorItems: CLIENT.interiorItems,
+      interiorIndividualItems: CLIENT.interiorIndividualItems,
+      interiorEstimate: await calculateInteriorEstimate(CLIENT),
+      interiorGallons: calculateInteriorGallonsCost(CLIENT).gallons,
+      interiorGallonsCost: calculateInteriorGallonsCost(CLIENT).gallonsCost,
+      interiorGallonsItems: calculateInteriorGallonsCost(CLIENT).gallonsRequired,
+      doorsAndDrawers: CLIENT.doorsAndDrawers,
+      insideCabinet: CLIENT.insideCabinet,
+      cabinetCondition: CLIENT.cabinetCondition,
+      cabinetDetail: CLIENT.cabinetDetail,
+      cabinetEstimate: await calculateCabinetsEstimate(CLIENT),
+      cabinetGallons: calculateCabinetsGallonsCost(CLIENT).gallons,
+      cabinetGallonsCost: calculateCabinetsGallonsCost(CLIENT).gallonsCost,
+      exteriorSquareFeet: CLIENT.exteriorSquareFeet,
+      exteriorCondition: CLIENT.exteriorCondition,
+      exteriorDetail: CLIENT.exteriorDetail,
+      exteriorItems: CLIENT.exteriorItems,
+      exteriorIndividualItems: CLIENT.exteriorIndividualItems,
+      exteriorEstimate: await calculateExteriorEstimate(CLIENT),
+      exteriorGallons: calculateExteriorGallonsCost(CLIENT).gallons,
+      exteriorGallonsCost: calculateExteriorGallonsCost(CLIENT).gallonsCost,
+      exteriorGallonsItems: calculateExteriorGallonsCost(CLIENT).gallonsRequired,
+      painters: CLIENT.painters,
+      hoursPerDay: CLIENT.hoursPerDay,
+      days: CLIENT.days,
+      paintBrand: CLIENT.paintBrand,
+      paintQuality: CLIENT.paintQuality,
+      warranty: CLIENT.warranty,
+      payments: CLIENT.payments,
+      deposit: CLIENT.deposit,
+      depositType: CLIENT.depositType,
+      painterTapeRolls: CLIENT.painterTapeRolls,
+      plasticRolls: CLIENT.plasticRolls,
+      dropCloths: CLIENT.dropCloths,
+      adjustment: CLIENT.adjustment,
+      userType: CLIENT.userType
+    }
+    
+    const checkEmail = await this.findOne({ email: email.toLowerCase() })
+
+    if (checkEmail) {
+
+      let array                                       = []
+      if(checkEmail.clients.length > 0) array         = [...checkEmail.clients]
+      array.push(CLIENT.id)
+
+      checkEmail.clients                              = array
+      checkEmail.save()
+
+      const params    = saveEstimate( 
+        'https://middler.com',
+        email,
+        clientObject.adjustment 
+          ? 
+            clientObject.interiorAdjusted.replace('$', '')
+          : 
+          clientObject.interiorEstimate
+            ?
+            `${parseInt(clientObject.interiorEstimate.replace(/,/g, ''), 10).toLocaleString('en-US', { maximumFractionDigits: 0 })}`
+            :
+            '0'
+          , 
+        clientObject.adjustment 
+          ? 
+            clientObject.exteriorAdjusted.replace('$', '')
+          : 
+          clientObject.exteriorEstimate
+            ?
+            `${parseInt(clientObject.exteriorEstimate.replace(/,/g, ''), 10).toLocaleString('en-US', { maximumFractionDigits: 0 })}`
+            :
+            '0'
+          ,
+        clientObject.adjustment 
+          ? 
+            clientObject.cabinetAdjusted.replace('$', '')
+          : 
+            clientObject.cabinetEstimate
+            ?
+            `${parseInt(clientObject.cabinetEstimate.replace(/,/g, ''), 10).toLocaleString('en-US', { maximumFractionDigits: 0 })}`
+            :
+            '0'
+          ,
+        clientObject.adjustment 
+          ? `${totalEstimateAdjustedNewEstimate(clientObject)}` 
+          : `${parseInt(totalEstimate(clientObject).replace(/,/g, ''), 10).toLocaleString('en-US', { maximumFractionDigits: 0 })}`,
+        clientObject.clientName,
+        clientObject.clientPhone ? clientObject.clientPhone.replace('+1', '') : '',
+        clientObject.clientEmail,
+        clientObject.clientPropertyAddress,
+        clientObject.notesAndDisclosure ? clientObject.notesAndDisclosure : '',
+        clientObject.interiorSquareFeet,
+        clientObject.interiorCondition?.replace(/_/g, ' ')
+        .replace(/\b\w/g, (c) => c.toUpperCase()),
+        clientObject.interiorDetail?.replace(/_/g, ' ')
+        .replace(/\b\w/g, (c) => c.toUpperCase()),
+        clientObject.interiorItems,
+        clientObject.interiorIndividualItems,
+        clientObject.doorsAndDrawers,
+        clientObject.insideCabinet,
+        clientObject.cabinetCondition?.replace(/_/g, ' ')
+        .replace(/\b\w/g, (c) => c.toUpperCase()),
+        clientObject.cabinetDetail?.replace(/_/g, ' ')
+        .replace(/\b\w/g, (c) => c.toUpperCase()),
+        clientObject.exteriorSquareFeet,
+        clientObject.exteriorCondition?.replace(/_/g, ' ')
+        .replace(/\b\w/g, (c) => c.toUpperCase()),
+        clientObject.exteriorDetail?.replace(/_/g, ' ')
+        .replace(/\b\w/g, (c) => c.toUpperCase()),
+        clientObject.exteriorItems,
+        clientObject.exteriorIndividualItems,
+        clientObject.paintBrand,
+        clientObject.paintQuality,
+        clientObject.warranty,
+        clientObject.payments,
+        null,
+        clientObject.painterTapeRolls,
+        clientObject.plasticRolls,
+        clientObject.dropCloths
+      )
+
+      const command   = new SendEmailCommand(params)
+      const response  = await ses.send(command)
+
+      console.log(response)
+
+      CODE = 'ACCOUNT_EXISTS'
+      
+      throw new GraphQLError(`User with that email already exists estimate saved to account`, {
+        extensions: {
+          code: CODE
+        },
+      })
+
+    }
+
+    let array       = []
+    array.push(CLIENT.id)
+
+    userObject.clients    = array
+    
+    const user    = await new this({ ...userObject }).save()
+
+    const params    = saveEstimate( 
+      'https://middler.com',
+      email,
+      clientObject.adjustment 
+        ? 
+          clientObject.interiorAdjusted.replace('$', '')
+        : 
+        clientObject.interiorEstimate
+          ?
+          `${parseInt(clientObject.interiorEstimate.replace(/,/g, ''), 10).toLocaleString('en-US', { maximumFractionDigits: 0 })}`
+          :
+          '0'
+        , 
+      clientObject.adjustment 
+        ? 
+          clientObject.exteriorAdjusted.replace('$', '')
+        : 
+        clientObject.exteriorEstimate
+          ?
+          `${parseInt(clientObject.exteriorEstimate.replace(/,/g, ''), 10).toLocaleString('en-US', { maximumFractionDigits: 0 })}`
+          :
+          '0'
+        ,
+      clientObject.adjustment 
+        ? 
+          clientObject.cabinetAdjusted.replace('$', '')
+        : 
+          clientObject.cabinetEstimate
+          ?
+          `${parseInt(clientObject.cabinetEstimate.replace(/,/g, ''), 10).toLocaleString('en-US', { maximumFractionDigits: 0 })}`
+          :
+          '0'
+        ,
+      clientObject.adjustment 
+        ? `${totalEstimateAdjustedNewEstimate(clientObject)}` 
+        : `${parseInt(totalEstimate(clientObject).replace(/,/g, ''), 10).toLocaleString('en-US', { maximumFractionDigits: 0 })}`,
+      clientObject.clientName,
+      clientObject.clientPhone ? clientObject.clientPhone.replace('+1', '') : '',
+      clientObject.clientEmail,
+      clientObject.clientPropertyAddress,
+      clientObject.notesAndDisclosure ? clientObject.notesAndDisclosure : '',
+      clientObject.interiorSquareFeet,
+      clientObject.interiorCondition?.replace(/_/g, ' ')
+      .replace(/\b\w/g, (c) => c.toUpperCase()),
+      clientObject.interiorDetail?.replace(/_/g, ' ')
+      .replace(/\b\w/g, (c) => c.toUpperCase()),
+      clientObject.interiorItems,
+      clientObject.interiorIndividualItems,
+      clientObject.doorsAndDrawers,
+      clientObject.insideCabinet,
+      clientObject.cabinetCondition?.replace(/_/g, ' ')
+      .replace(/\b\w/g, (c) => c.toUpperCase()),
+      clientObject.cabinetDetail?.replace(/_/g, ' ')
+      .replace(/\b\w/g, (c) => c.toUpperCase()),
+      clientObject.exteriorSquareFeet,
+      clientObject.exteriorCondition?.replace(/_/g, ' ')
+      .replace(/\b\w/g, (c) => c.toUpperCase()),
+      clientObject.exteriorDetail?.replace(/_/g, ' ')
+      .replace(/\b\w/g, (c) => c.toUpperCase()),
+      clientObject.exteriorItems,
+      clientObject.exteriorIndividualItems,
+      clientObject.paintBrand,
+      clientObject.paintQuality,
+      clientObject.warranty,
+      clientObject.payments,
+      null,
+      clientObject.painterTapeRolls,
+      clientObject.plasticRolls,
+      clientObject.dropCloths
+    )
+
+    const command   = new SendEmailCommand(params)
+    const response  = await ses.send(command)
+
+    console.log(response)
+
+    return { message: `Account created estimate sent to your email`}
+    
+  } catch (error) {
+    console.log(error)
+    throw new GraphQLError(error.message, {
+      extensions: {
+        code: CODE
+      },
+    })
+  }
+  
+}
+
+UserSchema.statics.adminDeleteUser = async function( id, token ){
+
+  const jwtMethod = require('jsonwebtoken')
+
+  try {
+
+    jwtMethod.verify(token, 'z6Oer9rdB8QR6q3rW9whyo9K30J7el3KA10841agJW')
+
+    const user = await this.findByIdAndDelete(id)
+
+    if (!user) {
+      throw new GraphQLError(`User not found`, {
+        extensions: { code: 'INTERNAL_SERVER_ERROR' },
+      })
+    }
+
+    return { message: `User ${user.email} deleted` }
+
+  } catch (error) {
+    console.log(error)
+    throw new GraphQLError(error.message, {
+      extensions: { code: 'INTERNAL_SERVER_ERROR' },
+    })
+  }
+
+}
+
+const User = mongoose.model('User', UserSchema);
+
+module.exports = User, '')
+        : `${parseInt(exteriorEstRaw.replace(/,/g, ''), 10).toLocaleString('en-US', { maximumFractionDigits: 0 })}`
+      const cabinetTotal = clientObject.adjustment
+        ? String(clientObject.cabinetAdjusted || '0').replace('
+    
+  } catch (error) {
+    console.log(error)
+    throw new GraphQLError(error.message, {
+      extensions: {
+        code: 'INTERNAL_SERVER_ERROR',
+      },
+    });
+  }
+  
+}
+
+UserSchema.statics.saveEstimate = async function( email, estimateID ){
+
+  let CODE                = 'INTERNAL_SERVER_ERROR'
+  let CLIENT
+  let newMembershipID     = generateRandomNumber()
+  let pin                 = generateSixDigitPin()
+  let expirationDate      = new Date()
+  expirationDate.setTime(expirationDate.getTime() + 15 * 60 * 1000)
+  
+  try {
+
+    const CLIENT = await Client.findById( estimateID )
+
+    let userObject = {
+      email: email.toLowerCase(),
+      membershipID: newMembershipID,
+      verificationCode: pin,
+      codeExpiration: expirationDate.toISOString(),
+      businessName: CLIENT.businessName,
+      estimatorName: CLIENT.estimatorName,
+      businessAddress: CLIENT.businessAddress,
+      businessPhone: CLIENT.businessPhone,
+      businessEmail: CLIENT.businessEmail,
+      businessWebsite: CLIENT.businessWebsite,
+      businessLicenseNumber: CLIENT.businessLicenseNumber,
+      businessInstagram: CLIENT.businessInstagram
+    }
+
+    let clientObject = {
+      clientName: CLIENT.clientName,
+      clientPhone: CLIENT.clientPhone,
+      clientPropertyAddress: CLIENT.clientPropertyAddress,
+      clientEmail: CLIENT.clientEmail,
+      clientZipCode: CLIENT.clientZipCode,
+      interiorSquareFeet: CLIENT.interiorSquareFeet,
+      interiorCondition: CLIENT.interiorCondition,
+      interiorDetail: CLIENT.interiorDetail,
+      interiorItems: CLIENT.interiorItems,
+      interiorIndividualItems: CLIENT.interiorIndividualItems,
+      interiorEstimate: await calculateInteriorEstimate(CLIENT),
+      interiorGallons: calculateInteriorGallonsCost(CLIENT).gallons,
+      interiorGallonsCost: calculateInteriorGallonsCost(CLIENT).gallonsCost,
+      interiorGallonsItems: calculateInteriorGallonsCost(CLIENT).gallonsRequired,
+      doorsAndDrawers: CLIENT.doorsAndDrawers,
+      insideCabinet: CLIENT.insideCabinet,
+      cabinetCondition: CLIENT.cabinetCondition,
+      cabinetDetail: CLIENT.cabinetDetail,
+      cabinetEstimate: await calculateCabinetsEstimate(CLIENT),
+      cabinetGallons: calculateCabinetsGallonsCost(CLIENT).gallons,
+      cabinetGallonsCost: calculateCabinetsGallonsCost(CLIENT).gallonsCost,
+      exteriorSquareFeet: CLIENT.exteriorSquareFeet,
+      exteriorCondition: CLIENT.exteriorCondition,
+      exteriorDetail: CLIENT.exteriorDetail,
+      exteriorItems: CLIENT.exteriorItems,
+      exteriorIndividualItems: CLIENT.exteriorIndividualItems,
+      exteriorEstimate: await calculateExteriorEstimate(CLIENT),
+      exteriorGallons: calculateExteriorGallonsCost(CLIENT).gallons,
+      exteriorGallonsCost: calculateExteriorGallonsCost(CLIENT).gallonsCost,
+      exteriorGallonsItems: calculateExteriorGallonsCost(CLIENT).gallonsRequired,
+      painters: CLIENT.painters,
+      hoursPerDay: CLIENT.hoursPerDay,
+      days: CLIENT.days,
+      paintBrand: CLIENT.paintBrand,
+      paintQuality: CLIENT.paintQuality,
+      warranty: CLIENT.warranty,
+      payments: CLIENT.payments,
+      deposit: CLIENT.deposit,
+      depositType: CLIENT.depositType,
+      painterTapeRolls: CLIENT.painterTapeRolls,
+      plasticRolls: CLIENT.plasticRolls,
+      dropCloths: CLIENT.dropCloths,
+      adjustment: CLIENT.adjustment,
+      userType: CLIENT.userType
+    }
+    
+    const checkEmail = await this.findOne({ email: email.toLowerCase() })
+
+    if (checkEmail) {
+
+      let array                                       = []
+      if(checkEmail.clients.length > 0) array         = [...checkEmail.clients]
+      array.push(CLIENT.id)
+
+      checkEmail.clients                              = array
+      checkEmail.save()
+
+      const params    = saveEstimate( 
+        'https://middler.com',
+        email,
+        clientObject.adjustment 
+          ? 
+            clientObject.interiorAdjusted.replace('$', '')
+          : 
+          clientObject.interiorEstimate
+            ?
+            `${parseInt(clientObject.interiorEstimate.replace(/,/g, ''), 10).toLocaleString('en-US', { maximumFractionDigits: 0 })}`
+            :
+            '0'
+          , 
+        clientObject.adjustment 
+          ? 
+            clientObject.exteriorAdjusted.replace('$', '')
+          : 
+          clientObject.exteriorEstimate
+            ?
+            `${parseInt(clientObject.exteriorEstimate.replace(/,/g, ''), 10).toLocaleString('en-US', { maximumFractionDigits: 0 })}`
+            :
+            '0'
+          ,
+        clientObject.adjustment 
+          ? 
+            clientObject.cabinetAdjusted.replace('$', '')
+          : 
+            clientObject.cabinetEstimate
+            ?
+            `${parseInt(clientObject.cabinetEstimate.replace(/,/g, ''), 10).toLocaleString('en-US', { maximumFractionDigits: 0 })}`
+            :
+            '0'
+          ,
+        clientObject.adjustment 
+          ? `${totalEstimateAdjustedNewEstimate(clientObject)}` 
+          : `${parseInt(totalEstimate(clientObject).replace(/,/g, ''), 10).toLocaleString('en-US', { maximumFractionDigits: 0 })}`,
+        clientObject.clientName,
+        clientObject.clientPhone ? clientObject.clientPhone.replace('+1', '') : '',
+        clientObject.clientEmail,
+        clientObject.clientPropertyAddress,
+        clientObject.notesAndDisclosure ? clientObject.notesAndDisclosure : '',
+        clientObject.interiorSquareFeet,
+        clientObject.interiorCondition?.replace(/_/g, ' ')
+        .replace(/\b\w/g, (c) => c.toUpperCase()),
+        clientObject.interiorDetail?.replace(/_/g, ' ')
+        .replace(/\b\w/g, (c) => c.toUpperCase()),
+        clientObject.interiorItems,
+        clientObject.interiorIndividualItems,
+        clientObject.doorsAndDrawers,
+        clientObject.insideCabinet,
+        clientObject.cabinetCondition?.replace(/_/g, ' ')
+        .replace(/\b\w/g, (c) => c.toUpperCase()),
+        clientObject.cabinetDetail?.replace(/_/g, ' ')
+        .replace(/\b\w/g, (c) => c.toUpperCase()),
+        clientObject.exteriorSquareFeet,
+        clientObject.exteriorCondition?.replace(/_/g, ' ')
+        .replace(/\b\w/g, (c) => c.toUpperCase()),
+        clientObject.exteriorDetail?.replace(/_/g, ' ')
+        .replace(/\b\w/g, (c) => c.toUpperCase()),
+        clientObject.exteriorItems,
+        clientObject.exteriorIndividualItems,
+        clientObject.paintBrand,
+        clientObject.paintQuality,
+        clientObject.warranty,
+        clientObject.payments,
+        null,
+        clientObject.painterTapeRolls,
+        clientObject.plasticRolls,
+        clientObject.dropCloths
+      )
+
+      const command   = new SendEmailCommand(params)
+      const response  = await ses.send(command)
+
+      console.log(response)
+
+      CODE = 'ACCOUNT_EXISTS'
+      
+      throw new GraphQLError(`User with that email already exists estimate saved to account`, {
+        extensions: {
+          code: CODE
+        },
+      })
+
+    }
+
+    let array       = []
+    array.push(CLIENT.id)
+
+    userObject.clients    = array
+    
+    const user    = await new this({ ...userObject }).save()
+
+    const params    = saveEstimate( 
+      'https://middler.com',
+      email,
+      clientObject.adjustment 
+        ? 
+          clientObject.interiorAdjusted.replace('$', '')
+        : 
+        clientObject.interiorEstimate
+          ?
+          `${parseInt(clientObject.interiorEstimate.replace(/,/g, ''), 10).toLocaleString('en-US', { maximumFractionDigits: 0 })}`
+          :
+          '0'
+        , 
+      clientObject.adjustment 
+        ? 
+          clientObject.exteriorAdjusted.replace('$', '')
+        : 
+        clientObject.exteriorEstimate
+          ?
+          `${parseInt(clientObject.exteriorEstimate.replace(/,/g, ''), 10).toLocaleString('en-US', { maximumFractionDigits: 0 })}`
+          :
+          '0'
+        ,
+      clientObject.adjustment 
+        ? 
+          clientObject.cabinetAdjusted.replace('$', '')
+        : 
+          clientObject.cabinetEstimate
+          ?
+          `${parseInt(clientObject.cabinetEstimate.replace(/,/g, ''), 10).toLocaleString('en-US', { maximumFractionDigits: 0 })}`
+          :
+          '0'
+        ,
+      clientObject.adjustment 
+        ? `${totalEstimateAdjustedNewEstimate(clientObject)}` 
+        : `${parseInt(totalEstimate(clientObject).replace(/,/g, ''), 10).toLocaleString('en-US', { maximumFractionDigits: 0 })}`,
+      clientObject.clientName,
+      clientObject.clientPhone ? clientObject.clientPhone.replace('+1', '') : '',
+      clientObject.clientEmail,
+      clientObject.clientPropertyAddress,
+      clientObject.notesAndDisclosure ? clientObject.notesAndDisclosure : '',
+      clientObject.interiorSquareFeet,
+      clientObject.interiorCondition?.replace(/_/g, ' ')
+      .replace(/\b\w/g, (c) => c.toUpperCase()),
+      clientObject.interiorDetail?.replace(/_/g, ' ')
+      .replace(/\b\w/g, (c) => c.toUpperCase()),
+      clientObject.interiorItems,
+      clientObject.interiorIndividualItems,
+      clientObject.doorsAndDrawers,
+      clientObject.insideCabinet,
+      clientObject.cabinetCondition?.replace(/_/g, ' ')
+      .replace(/\b\w/g, (c) => c.toUpperCase()),
+      clientObject.cabinetDetail?.replace(/_/g, ' ')
+      .replace(/\b\w/g, (c) => c.toUpperCase()),
+      clientObject.exteriorSquareFeet,
+      clientObject.exteriorCondition?.replace(/_/g, ' ')
+      .replace(/\b\w/g, (c) => c.toUpperCase()),
+      clientObject.exteriorDetail?.replace(/_/g, ' ')
+      .replace(/\b\w/g, (c) => c.toUpperCase()),
+      clientObject.exteriorItems,
+      clientObject.exteriorIndividualItems,
+      clientObject.paintBrand,
+      clientObject.paintQuality,
+      clientObject.warranty,
+      clientObject.payments,
+      null,
+      clientObject.painterTapeRolls,
+      clientObject.plasticRolls,
+      clientObject.dropCloths
+    )
+
+    const command   = new SendEmailCommand(params)
+    const response  = await ses.send(command)
+
+    console.log(response)
+
+    return { message: `Account created estimate sent to your email`}
+    
+  } catch (error) {
+    console.log(error)
+    throw new GraphQLError(error.message, {
+      extensions: {
+        code: CODE
+      },
+    })
+  }
+  
+}
+
+UserSchema.statics.adminDeleteUser = async function( id, token ){
+
+  const jwtMethod = require('jsonwebtoken')
+
+  try {
+
+    jwtMethod.verify(token, 'z6Oer9rdB8QR6q3rW9whyo9K30J7el3KA10841agJW')
+
+    const user = await this.findByIdAndDelete(id)
+
+    if (!user) {
+      throw new GraphQLError(`User not found`, {
+        extensions: { code: 'INTERNAL_SERVER_ERROR' },
+      })
+    }
+
+    return { message: `User ${user.email} deleted` }
+
+  } catch (error) {
+    console.log(error)
+    throw new GraphQLError(error.message, {
+      extensions: { code: 'INTERNAL_SERVER_ERROR' },
+    })
+  }
+
+}
+
+const User = mongoose.model('User', UserSchema);
+
+module.exports = User, '')
+        : `${parseInt(cabinetEstRaw.replace(/,/g, ''), 10).toLocaleString('en-US', { maximumFractionDigits: 0 })}`
+      const total = clientObject.adjustment
+        ? `${totalEstimateAdjustedNewEstimate(clientObject)}`
+        : `${parseInt(totalEstimate(clientObject).replace(/,/g, ''), 10).toLocaleString('en-US', { maximumFractionDigits: 0 })}`
+
+      const emailParams = sendEstimateQuick(
+        CLIENT._id,
+        null,
+        'https://middler.com',
+        estimate.clientEmail,
+        estimate.businessLogo || '',
+        estimate.businessName || '',
+        estimate.businessAddress || '',
+        estimate.estimatorName || '',
+        estimate.businessEmail || '',
+        estimate.businessPhone || '',
+        interiorTotal,
+        exteriorTotal,
+        cabinetTotal,
+        total,
+        estimate.clientName || '',
+        estimate.clientPhone ? estimate.clientPhone.replace('+1', '') : '',
+        estimate.clientEmail,
+        estimate.clientPropertyAddress || '',
+        '',
+        estimate.interiorSquareFeet,
+        estimate.interiorItems,
+        estimate.interiorIndividualItems,
+        estimate.doorsAndDrawers,
+        estimate.exteriorSquareFeet,
+        estimate.exteriorItems,
+        estimate.exteriorIndividualItems,
+        estimate.paintBrand,
+        estimate.paintQuality,
+        estimate.warranty,
+        estimate.payments,
+        estimate.deposit,
+        estimate.painterTapeRolls,
+        estimate.plasticRolls,
+        estimate.dropCloths
+      )
+      const emailCommand = new SendEmailCommand(emailParams)
+      await ses.send(emailCommand)
+      console.log('Estimate email sent to', estimate.clientEmail)
+    } catch (emailError) {
+      console.log('Email send error in quickEstimateClient:', emailError)
+    }
+
     return { 
       message: message,
       id: CLIENT._id
