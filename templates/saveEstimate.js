@@ -208,7 +208,27 @@ exports.saveEstimate = (
                     <table width="600" cellpadding="0" cellspacing="0" border="0" style="background-color:#ffffff;border-radius:8px;overflow:hidden;">
                       <tr><td align="center" style="padding:30px 20px 10px;font-size:24px;font-weight:bold;color:#333">Thank you for using Middler.</td></tr>
                       <tr><td align="center" style="padding:0 20px 20px;font-size:16px;color:#555555">If you have any questions, comments or feedback we would love to hear from you. Just reply to this email!</td></tr>
-                      <tr><td align="center" style="padding:0 20px 24px;font-size:16px;color:#555555"><strong style="color:#333333;">Estimate Address:</strong> ${clientAddress || 'Unknown'}</td></tr>
+                      <tr>
+                        <td style="padding: 0 20px 24px;">
+                          <table width="100%" cellpadding="0" cellspacing="0" style="border-radius: 10px; background-color: #f9f9f9; border: 1px solid #ddd;">
+                            <tr>
+                              <td colspan="2" style="background-color: #3366ff; color: #ffffff; padding: 12px 15px; font-size: 16px; font-weight: bold; border-radius: 10px 10px 0 0;">
+                                Client Information
+                              </td>
+                            </tr>
+                            <tr>
+                              <td style="padding: 12px 15px; width: 50%; vertical-align: top;">
+                                ${clientName ? `<p style="margin: 0 0 8px;"><strong>Name:</strong> ${clientName}</p>` : ''}
+                                ${clientEmail ? `<p style="margin: 0 0 8px;"><strong>Email:</strong> ${clientEmail}</p>` : ''}
+                                ${clientPhone ? `<p style="margin: 0 0 8px;"><strong>Phone:</strong> ${clientPhone}</p>` : ''}
+                              </td>
+                              <td style="padding: 12px 15px; width: 50%; vertical-align: top;">
+                                <p style="margin: 0;"><strong>Address:</strong><br/>${clientAddress || 'Unknown'}</p>
+                              </td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
                       <tr><td align="center" style="padding:20px;">
                         <table width="100%" cellpadding="0" cellspacing="0">
                           <tr><td align="center" style="font-size:24px;font-weight:bold;color:#000">Middler Prices</td></tr>
