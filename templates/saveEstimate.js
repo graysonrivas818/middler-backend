@@ -217,12 +217,11 @@ exports.saveEstimate = (
                               </td>
                             </tr>
                             <tr>
-                              <td style="padding: 12px 15px; width: 50%; vertical-align: top;">
+                              <td style="padding: 12px 15px; width: 100%; vertical-align: top;">
                                 ${clientName ? `<p style="margin: 0 0 8px;"><strong>Name:</strong> ${clientName}</p>` : ''}
                                 ${clientEmail ? `<p style="margin: 0 0 8px;"><strong>Email:</strong> ${clientEmail}</p>` : ''}
                                 ${clientPhone ? `<p style="margin: 0 0 8px;"><strong>Phone:</strong> ${clientPhone}</p>` : ''}
-                              </td>
-                              <td style="padding: 12px 15px; width: 50%; vertical-align: top;">
+                              
                                 <p style="margin: 0;"><strong>Address:</strong><br/>${clientAddress || 'Unknown'}</p>
                               </td>
                             </tr>
