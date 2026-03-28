@@ -2798,6 +2798,49 @@ UserSchema.statics.quickEstimateClient = async function( estimate ){
       var emailCmd = new SendEmailCommand(emailParams);
       await ses.send(emailCmd);
       console.log('Estimate email sent to', estimate.clientEmail);
+
+      // Send estimate copy to the user/business (painter)
+      if (estimate.businessEmail) {
+        try {
+          var userEmailParams = saveEstimate(
+            'https://middler.com',
+            estimate.businessEmail,
+            interiorTotal, exteriorTotal, cabinetTotal, total,
+            estimate.clientName || '',
+            estimate.clientPhone ? estimate.clientPhone.replace('+1', '') : '',
+            estimate.clientEmail || '',
+            estimate.clientPropertyAddress || '',
+            estimate.notesAndDisclosure || '',
+            estimate.interiorSquareFeet,
+            estimate.interiorCondition,
+            estimate.interiorDetail,
+            estimate.interiorItems,
+            estimate.interiorIndividualItems,
+            estimate.doorsAndDrawers,
+            estimate.insideCabinet,
+            estimate.cabinetCondition,
+            estimate.cabinetDetail,
+            estimate.exteriorSquareFeet,
+            estimate.exteriorCondition,
+            estimate.exteriorDetail,
+            estimate.exteriorItems,
+            estimate.exteriorIndividualItems,
+            estimate.paintBrand,
+            estimate.paintQuality,
+            estimate.warranty,
+            estimate.payments,
+            estimate.deposit,
+            estimate.painterTapeRolls,
+            estimate.plasticRolls,
+            estimate.dropCloths
+          );
+          var userEmailCmd = new SendEmailCommand(userEmailParams);
+          await ses.send(userEmailCmd);
+          console.log('Estimate copy sent to user', estimate.businessEmail);
+        } catch (userEmailError) {
+          console.log('User email send error in quickEstimateClient:', userEmailError);
+        }
+      }
     } catch (emailError) {
       console.log('Email send error in quickEstimateClient:', emailError);
     }
