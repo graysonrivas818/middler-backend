@@ -97,6 +97,9 @@ exports.saveEstimate = (
               <td style="padding: 15px; width: 50%; vertical-align: top;">
                 <p style="margin: 0; font-weight: bold;">Number of Cabinets</p>
                 <p style="margin: 0;">${doorsAndDrawers}</p>
+                <br/>
+                <p style="margin: 0; font-weight: bold;">Paint Inside of Cabinets</p>
+                <p style="margin: 0;">${insideCabinet ? 'Yes' : 'No'}</p>
               </td>
               <td style="padding: 15px; width: 50%; vertical-align: top;">
                 <p style="margin: 0; font-weight: bold;">Cabinet Condition</p>
