@@ -22,6 +22,7 @@
   interiorItems,
   interiorIndividualItems,
   doorsAndDrawers,
+  insideCabinet,
   exteriorSquareFeet,
   exteriorItems,
   exteriorIndividualItems,
@@ -35,6 +36,11 @@
   dropCloths
 ) => {
   const replyToEmail = businessEmail || 'no-reply@middler.com';
+  const isInsideCabinetYes =
+    insideCabinet === true ||
+    insideCabinet === 'yes' ||
+    insideCabinet === 'true' ||
+    insideCabinet === 1;
 
   const interiorSectionHtml =
     interiorSquareFeet && interiorItems && interiorItems.length
@@ -88,6 +94,9 @@
               <td style="padding: 15px; width: 50%; vertical-align: top;">
                 <p style="margin: 0; font-weight: bold;">Number of Cabinets</p>
                 <p style="margin: 0;">${doorsAndDrawers}</p>
+                <br/>
+                <p style="margin: 0; font-weight: bold;">Paint Inside of Cabinets</p>
+                <p style="margin: 0;">${isInsideCabinetYes ? 'Yes' : 'No'}</p>
               </td>
             </tr>
           </table>

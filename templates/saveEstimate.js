@@ -33,6 +33,12 @@ exports.saveEstimate = (
   plasticRolls,
   dropCloths
 ) => {
+  const isInsideCabinetYes =
+    insideCabinet === true ||
+    insideCabinet === 'yes' ||
+    insideCabinet === 'true' ||
+    insideCabinet === 1;
+
   const interiorSectionHtml =
     interiorSquareFeet && interiorItems && interiorItems.length
       ? `
@@ -99,7 +105,7 @@ exports.saveEstimate = (
                 <p style="margin: 0;">${doorsAndDrawers}</p>
                 <br/>
                 <p style="margin: 0; font-weight: bold;">Paint Inside of Cabinets</p>
-                <p style="margin: 0;">${insideCabinet ? 'Yes' : 'No'}</p>
+                <p style="margin: 0;">${isInsideCabinetYes ? 'Yes' : 'No'}</p>
               </td>
               <td style="padding: 15px; width: 50%; vertical-align: top;">
                 <p style="margin: 0; font-weight: bold;">Cabinet Condition</p>
