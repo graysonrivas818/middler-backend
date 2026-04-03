@@ -2711,7 +2711,7 @@ UserSchema.statics.quickEstimateClient = async function( estimate ){
       clientName: safeEstimate.clientName,
       clientPhone: safeEstimate.clientPhone,
       clientPropertyAddress: safeEstimate.clientPropertyAddress,
-      clientEmail: safeEstimate.clientEmail,
+      clientEmail: (safeEstimate.clientEmail || safeEstimate.businessEmail || '').trim(),
       clientZipCode: safeEstimate.clientZipCode,
       interiorSquareFeet: safeEstimate.interiorSquareFeet,
       interiorCondition: safeEstimate.interiorCondition,
@@ -2766,10 +2766,12 @@ UserSchema.statics.quickEstimateClient = async function( estimate ){
       var iEst = clientObject.interiorEstimate ? String(clientObject.interiorEstimate) : '0';
       var eEst = clientObject.exteriorEstimate ? String(clientObject.exteriorEstimate) : '0';
       var cEst = clientObject.cabinetEstimate  ? String(clientObject.cabinetEstimate)  : '0';
-      var interiorTotal = clientObject.adjustment ? iAdj : String(parseInt(iEst.replace(/,/g, ''), 10).toLocaleString('en-US', { maximumFractionDigits: 0 }));
-      var exteriorTotal = clientObject.adjustment ? eAdj : String(parseInt(eEst.replace(/,/g, ''), 10).toLocaleString('en-US', { maximumFractionDigits: 0 }));
-      var cabinetTotal  = clientObject.adjustment ? cAdj : String(parseInt(cEst.replace(/,/g, ''), 10).toLocaleString('en-US', { maximumFractionDigits: 0 }));
-      var total = clientObject.adjustment
+      var hasAdjustedValues = !!clientObject.interiorAdjusted || !!clientObject.exteriorAdjusted || !!clientObject.cabinetAdjusted;
+      var useAdjustedValues = !!clientObject.adjustment && hasAdjustedValues;
+      var interiorTotal = useAdjustedValues ? iAdj : String(parseInt(iEst.replace(/,/g, ''), 10).toLocaleString('en-US', { maximumFractionDigits: 0 }));
+      var exteriorTotal = useAdjustedValues ? eAdj : String(parseInt(eEst.replace(/,/g, ''), 10).toLocaleString('en-US', { maximumFractionDigits: 0 }));
+      var cabinetTotal  = useAdjustedValues ? cAdj : String(parseInt(cEst.replace(/,/g, ''), 10).toLocaleString('en-US', { maximumFractionDigits: 0 }));
+      var total = useAdjustedValues
         ? String(totalEstimateAdjustedNewEstimate(clientObject))
         : String(parseInt(totalEstimate(clientObject).replace(/,/g, ''), 10).toLocaleString('en-US', { maximumFractionDigits: 0 }));
       const clientEmail = (estimate.clientEmail || '').trim();
@@ -2881,9 +2883,16 @@ UserSchema.statics.saveEstimate = async function( email, estimateID ){
   try {
 
     const CLIENT = await Client.findById( estimateID )
+    const normalizedEmail = (email || '').trim().toLowerCase()
+    const hasValidEmail = /^\S+@\S+\.\S+$/.test(normalizedEmail)
+
+    if (hasValidEmail && !CLIENT.clientEmail) {
+      CLIENT.clientEmail = normalizedEmail
+      await CLIENT.save()
+    }
 
     let userObject = {
-      email: email.toLowerCase(),
+      email: normalizedEmail,
       membershipID: newMembershipID,
       verificationCode: pin,
       codeExpiration: expirationDate.toISOString(),
@@ -2901,7 +2910,7 @@ UserSchema.statics.saveEstimate = async function( email, estimateID ){
       clientName: CLIENT.clientName,
       clientPhone: CLIENT.clientPhone,
       clientPropertyAddress: CLIENT.clientPropertyAddress,
-      clientEmail: CLIENT.clientEmail,
+      clientEmail: CLIENT.clientEmail || normalizedEmail,
       clientZipCode: CLIENT.clientZipCode,
       interiorSquareFeet: CLIENT.interiorSquareFeet,
       interiorCondition: CLIENT.interiorCondition,
@@ -2941,10 +2950,47 @@ UserSchema.statics.saveEstimate = async function( email, estimateID ){
       plasticRolls: CLIENT.plasticRolls,
       dropCloths: CLIENT.dropCloths,
       adjustment: CLIENT.adjustment,
+      interiorAdjusted: CLIENT.interiorAdjusted,
+      exteriorAdjusted: CLIENT.exteriorAdjusted,
+      cabinetAdjusted: CLIENT.cabinetAdjusted,
       userType: CLIENT.userType
     }
+
+    const normalizeAmount = (value) => {
+      if (value === null || value === undefined || value === '') return '0'
+      return String(value).replace('$', '')
+    }
+
+    const hasAdjustedValues =
+      !!clientObject.interiorAdjusted ||
+      !!clientObject.exteriorAdjusted ||
+      !!clientObject.cabinetAdjusted
+
+    const useAdjustedValues = !!clientObject.adjustment && hasAdjustedValues
+
+    const interiorForEmail = useAdjustedValues
+      ? normalizeAmount(clientObject.interiorAdjusted)
+      : clientObject.interiorEstimate
+        ? `${parseInt(String(clientObject.interiorEstimate).replace(/,/g, ''), 10).toLocaleString('en-US', { maximumFractionDigits: 0 })}`
+        : '0'
+
+    const exteriorForEmail = useAdjustedValues
+      ? normalizeAmount(clientObject.exteriorAdjusted)
+      : clientObject.exteriorEstimate
+        ? `${parseInt(String(clientObject.exteriorEstimate).replace(/,/g, ''), 10).toLocaleString('en-US', { maximumFractionDigits: 0 })}`
+        : '0'
+
+    const cabinetForEmail = useAdjustedValues
+      ? normalizeAmount(clientObject.cabinetAdjusted)
+      : clientObject.cabinetEstimate
+        ? `${parseInt(String(clientObject.cabinetEstimate).replace(/,/g, ''), 10).toLocaleString('en-US', { maximumFractionDigits: 0 })}`
+        : '0'
+
+    const totalForEmail = useAdjustedValues
+      ? `${totalEstimateAdjustedNewEstimate(clientObject)}`
+      : `${parseInt(totalEstimate(clientObject).replace(/,/g, ''), 10).toLocaleString('en-US', { maximumFractionDigits: 0 })}`
     
-    const checkEmail = await this.findOne({ email: email.toLowerCase() })
+    const checkEmail = await this.findOne({ email: normalizedEmail })
 
     if (checkEmail) {
 
@@ -2953,7 +2999,7 @@ UserSchema.statics.saveEstimate = async function( email, estimateID ){
       array.push(CLIENT.id)
 
       checkEmail.clients                              = array
-      checkEmail.save()
+      await checkEmail.save()
 
       const params    = saveEstimate( 
         'https://middler.com',
@@ -2988,9 +3034,7 @@ UserSchema.statics.saveEstimate = async function( email, estimateID ){
             :
             '0'
           ,
-        clientObject.adjustment 
-          ? `${totalEstimateAdjustedNewEstimate(clientObject)}` 
-          : `${parseInt(totalEstimate(clientObject).replace(/,/g, ''), 10).toLocaleString('en-US', { maximumFractionDigits: 0 })}`,
+        totalForEmail,
         clientObject.clientName,
         clientObject.clientPhone ? clientObject.clientPhone.replace('+1', '') : '',
         clientObject.clientEmail,
@@ -3031,13 +3075,8 @@ UserSchema.statics.saveEstimate = async function( email, estimateID ){
 
       console.log(response)
 
-      CODE = 'ACCOUNT_EXISTS'
-      
-      throw new GraphQLError(`User with that email already exists estimate saved to account`, {
-        extensions: {
-          code: CODE
-        },
-      })
+      checkEmail.message = 'User with that email already exists estimate saved to account'
+      return checkEmail
 
     }
 
@@ -3081,9 +3120,7 @@ UserSchema.statics.saveEstimate = async function( email, estimateID ){
           :
           '0'
         ,
-      clientObject.adjustment 
-        ? `${totalEstimateAdjustedNewEstimate(clientObject)}` 
-        : `${parseInt(totalEstimate(clientObject).replace(/,/g, ''), 10).toLocaleString('en-US', { maximumFractionDigits: 0 })}`,
+      totalForEmail,
       clientObject.clientName,
       clientObject.clientPhone ? clientObject.clientPhone.replace('+1', '') : '',
       clientObject.clientEmail,
@@ -3176,9 +3213,16 @@ UserSchema.statics.saveEstimate = async function( email, estimateID ){
   try {
 
     const CLIENT = await Client.findById( estimateID )
+    const normalizedEmail = (email || '').trim().toLowerCase()
+    const hasValidEmail = /^\S+@\S+\.\S+$/.test(normalizedEmail)
+
+    if (hasValidEmail && !CLIENT.clientEmail) {
+      CLIENT.clientEmail = normalizedEmail
+      await CLIENT.save()
+    }
 
     let userObject = {
-      email: email.toLowerCase(),
+      email: normalizedEmail,
       membershipID: newMembershipID,
       verificationCode: pin,
       codeExpiration: expirationDate.toISOString(),
@@ -3196,7 +3240,7 @@ UserSchema.statics.saveEstimate = async function( email, estimateID ){
       clientName: CLIENT.clientName,
       clientPhone: CLIENT.clientPhone,
       clientPropertyAddress: CLIENT.clientPropertyAddress,
-      clientEmail: CLIENT.clientEmail,
+      clientEmail: CLIENT.clientEmail || normalizedEmail,
       clientZipCode: CLIENT.clientZipCode,
       interiorSquareFeet: CLIENT.interiorSquareFeet,
       interiorCondition: CLIENT.interiorCondition,
@@ -3239,7 +3283,7 @@ UserSchema.statics.saveEstimate = async function( email, estimateID ){
       userType: CLIENT.userType
     }
     
-    const checkEmail = await this.findOne({ email: email.toLowerCase() })
+    const checkEmail = await this.findOne({ email: normalizedEmail })
 
     if (checkEmail) {
 
@@ -3248,44 +3292,15 @@ UserSchema.statics.saveEstimate = async function( email, estimateID ){
       array.push(CLIENT.id)
 
       checkEmail.clients                              = array
-      checkEmail.save()
+      await checkEmail.save()
 
       const params    = saveEstimate( 
         'https://middler.com',
         email,
-        clientObject.adjustment 
-          ? 
-            clientObject.interiorAdjusted.replace('$', '')
-          : 
-          clientObject.interiorEstimate
-            ?
-            `${parseInt(clientObject.interiorEstimate.replace(/,/g, ''), 10).toLocaleString('en-US', { maximumFractionDigits: 0 })}`
-            :
-            '0'
-          , 
-        clientObject.adjustment 
-          ? 
-            clientObject.exteriorAdjusted.replace('$', '')
-          : 
-          clientObject.exteriorEstimate
-            ?
-            `${parseInt(clientObject.exteriorEstimate.replace(/,/g, ''), 10).toLocaleString('en-US', { maximumFractionDigits: 0 })}`
-            :
-            '0'
-          ,
-        clientObject.adjustment 
-          ? 
-            clientObject.cabinetAdjusted.replace('$', '')
-          : 
-            clientObject.cabinetEstimate
-            ?
-            `${parseInt(clientObject.cabinetEstimate.replace(/,/g, ''), 10).toLocaleString('en-US', { maximumFractionDigits: 0 })}`
-            :
-            '0'
-          ,
-        clientObject.adjustment 
-          ? `${totalEstimateAdjustedNewEstimate(clientObject)}` 
-          : `${parseInt(totalEstimate(clientObject).replace(/,/g, ''), 10).toLocaleString('en-US', { maximumFractionDigits: 0 })}`,
+        interiorForEmail,
+        exteriorForEmail,
+        cabinetForEmail,
+        totalForEmail,
         clientObject.clientName,
         clientObject.clientPhone ? clientObject.clientPhone.replace('+1', '') : '',
         clientObject.clientEmail,
@@ -3321,18 +3336,15 @@ UserSchema.statics.saveEstimate = async function( email, estimateID ){
         clientObject.dropCloths
       )
 
-      const command   = new SendEmailCommand(params)
-      const response  = await ses.send(command)
+      try {
+        const command   = new SendEmailCommand(params)
+        const response  = await ses.send(command)
+        console.log(response)
+      } catch (emailError) {
+        console.log('Email send error in saveEstimate (existing user):', emailError)
+      }
 
-      console.log(response)
-
-      CODE = 'ACCOUNT_EXISTS'
-      
-      throw new GraphQLError(`User with that email already exists estimate saved to account`, {
-        extensions: {
-          code: CODE
-        },
-      })
+      return { message: `User with that email already exists estimate saved to account` }
 
     }
 
@@ -3346,39 +3358,10 @@ UserSchema.statics.saveEstimate = async function( email, estimateID ){
     const params    = saveEstimate( 
       'https://middler.com',
       email,
-      clientObject.adjustment 
-        ? 
-          clientObject.interiorAdjusted.replace('$', '')
-        : 
-        clientObject.interiorEstimate
-          ?
-          `${parseInt(clientObject.interiorEstimate.replace(/,/g, ''), 10).toLocaleString('en-US', { maximumFractionDigits: 0 })}`
-          :
-          '0'
-        , 
-      clientObject.adjustment 
-        ? 
-          clientObject.exteriorAdjusted.replace('$', '')
-        : 
-        clientObject.exteriorEstimate
-          ?
-          `${parseInt(clientObject.exteriorEstimate.replace(/,/g, ''), 10).toLocaleString('en-US', { maximumFractionDigits: 0 })}`
-          :
-          '0'
-        ,
-      clientObject.adjustment 
-        ? 
-          clientObject.cabinetAdjusted.replace('$', '')
-        : 
-          clientObject.cabinetEstimate
-          ?
-          `${parseInt(clientObject.cabinetEstimate.replace(/,/g, ''), 10).toLocaleString('en-US', { maximumFractionDigits: 0 })}`
-          :
-          '0'
-        ,
-      clientObject.adjustment 
-        ? `${totalEstimateAdjustedNewEstimate(clientObject)}` 
-        : `${parseInt(totalEstimate(clientObject).replace(/,/g, ''), 10).toLocaleString('en-US', { maximumFractionDigits: 0 })}`,
+      interiorForEmail,
+      exteriorForEmail,
+      cabinetForEmail,
+      totalForEmail,
       clientObject.clientName,
       clientObject.clientPhone ? clientObject.clientPhone.replace('+1', '') : '',
       clientObject.clientEmail,
@@ -3414,10 +3397,13 @@ UserSchema.statics.saveEstimate = async function( email, estimateID ){
       clientObject.dropCloths
     )
 
-    const command   = new SendEmailCommand(params)
-    const response  = await ses.send(command)
-
-    console.log(response)
+    try {
+      const command   = new SendEmailCommand(params)
+      const response  = await ses.send(command)
+      console.log(response)
+    } catch (emailError) {
+      console.log('Email send error in saveEstimate (new user):', emailError)
+    }
 
     return { message: `Account created estimate sent to your email`}
     
@@ -3471,9 +3457,16 @@ UserSchema.statics.saveEstimate = async function( email, estimateID ){
   try {
 
     const CLIENT = await Client.findById( estimateID )
+    const normalizedEmail = (email || '').trim().toLowerCase()
+    const hasValidEmail = /^\S+@\S+\.\S+$/.test(normalizedEmail)
+
+    if (hasValidEmail && !CLIENT.clientEmail) {
+      CLIENT.clientEmail = normalizedEmail
+      await CLIENT.save()
+    }
 
     let userObject = {
-      email: email.toLowerCase(),
+      email: normalizedEmail,
       membershipID: newMembershipID,
       verificationCode: pin,
       codeExpiration: expirationDate.toISOString(),
@@ -3491,7 +3484,7 @@ UserSchema.statics.saveEstimate = async function( email, estimateID ){
       clientName: CLIENT.clientName,
       clientPhone: CLIENT.clientPhone,
       clientPropertyAddress: CLIENT.clientPropertyAddress,
-      clientEmail: CLIENT.clientEmail,
+      clientEmail: CLIENT.clientEmail || normalizedEmail,
       clientZipCode: CLIENT.clientZipCode,
       interiorSquareFeet: CLIENT.interiorSquareFeet,
       interiorCondition: CLIENT.interiorCondition,
@@ -3534,7 +3527,7 @@ UserSchema.statics.saveEstimate = async function( email, estimateID ){
       userType: CLIENT.userType
     }
     
-    const checkEmail = await this.findOne({ email: email.toLowerCase() })
+    const checkEmail = await this.findOne({ email: normalizedEmail })
 
     if (checkEmail) {
 
@@ -3543,14 +3536,14 @@ UserSchema.statics.saveEstimate = async function( email, estimateID ){
       array.push(CLIENT.id)
 
       checkEmail.clients                              = array
-      checkEmail.save()
+      await checkEmail.save()
 
       const params    = saveEstimate( 
         'https://middler.com',
         email,
         clientObject.adjustment 
           ? 
-            clientObject.interiorAdjusted.replace('$', '')
+            (clientObject.interiorAdjusted ? String(clientObject.interiorAdjusted).replace('$', '') : '0')
           : 
           clientObject.interiorEstimate
             ?
@@ -3560,7 +3553,7 @@ UserSchema.statics.saveEstimate = async function( email, estimateID ){
           , 
         clientObject.adjustment 
           ? 
-            clientObject.exteriorAdjusted.replace('$', '')
+            (clientObject.exteriorAdjusted ? String(clientObject.exteriorAdjusted).replace('$', '') : '0')
           : 
           clientObject.exteriorEstimate
             ?
@@ -3570,7 +3563,7 @@ UserSchema.statics.saveEstimate = async function( email, estimateID ){
           ,
         clientObject.adjustment 
           ? 
-            clientObject.cabinetAdjusted.replace('$', '')
+            (clientObject.cabinetAdjusted ? String(clientObject.cabinetAdjusted).replace('$', '') : '0')
           : 
             clientObject.cabinetEstimate
             ?
@@ -3578,7 +3571,7 @@ UserSchema.statics.saveEstimate = async function( email, estimateID ){
             :
             '0'
           ,
-        clientObject.adjustment 
+        (clientObject.adjustment && (clientObject.interiorAdjusted || clientObject.exteriorAdjusted || clientObject.cabinetAdjusted))
           ? `${totalEstimateAdjustedNewEstimate(clientObject)}` 
           : `${parseInt(totalEstimate(clientObject).replace(/,/g, ''), 10).toLocaleString('en-US', { maximumFractionDigits: 0 })}`,
         clientObject.clientName,
@@ -3616,18 +3609,15 @@ UserSchema.statics.saveEstimate = async function( email, estimateID ){
         clientObject.dropCloths
       )
 
-      const command   = new SendEmailCommand(params)
-      const response  = await ses.send(command)
+      try {
+        const command   = new SendEmailCommand(params)
+        const response  = await ses.send(command)
+        console.log(response)
+      } catch (emailError) {
+        console.log('Email send error in saveEstimate (existing user):', emailError)
+      }
 
-      console.log(response)
-
-      CODE = 'ACCOUNT_EXISTS'
-      
-      throw new GraphQLError(`User with that email already exists estimate saved to account`, {
-        extensions: {
-          code: CODE
-        },
-      })
+      return { message: `User with that email already exists estimate saved to account` }
 
     }
 
@@ -3643,7 +3633,7 @@ UserSchema.statics.saveEstimate = async function( email, estimateID ){
       email,
       clientObject.adjustment 
         ? 
-          clientObject.interiorAdjusted.replace('$', '')
+          (clientObject.interiorAdjusted ? String(clientObject.interiorAdjusted).replace('$', '') : '0')
         : 
         clientObject.interiorEstimate
           ?
@@ -3653,7 +3643,7 @@ UserSchema.statics.saveEstimate = async function( email, estimateID ){
         , 
       clientObject.adjustment 
         ? 
-          clientObject.exteriorAdjusted.replace('$', '')
+          (clientObject.exteriorAdjusted ? String(clientObject.exteriorAdjusted).replace('$', '') : '0')
         : 
         clientObject.exteriorEstimate
           ?
@@ -3663,7 +3653,7 @@ UserSchema.statics.saveEstimate = async function( email, estimateID ){
         ,
       clientObject.adjustment 
         ? 
-          clientObject.cabinetAdjusted.replace('$', '')
+          (clientObject.cabinetAdjusted ? String(clientObject.cabinetAdjusted).replace('$', '') : '0')
         : 
           clientObject.cabinetEstimate
           ?
@@ -3671,7 +3661,7 @@ UserSchema.statics.saveEstimate = async function( email, estimateID ){
           :
           '0'
         ,
-      clientObject.adjustment 
+      (clientObject.adjustment && (clientObject.interiorAdjusted || clientObject.exteriorAdjusted || clientObject.cabinetAdjusted))
         ? `${totalEstimateAdjustedNewEstimate(clientObject)}` 
         : `${parseInt(totalEstimate(clientObject).replace(/,/g, ''), 10).toLocaleString('en-US', { maximumFractionDigits: 0 })}`,
       clientObject.clientName,
@@ -3709,10 +3699,13 @@ UserSchema.statics.saveEstimate = async function( email, estimateID ){
       clientObject.dropCloths
     )
 
-    const command   = new SendEmailCommand(params)
-    const response  = await ses.send(command)
-
-    console.log(response)
+    try {
+      const command   = new SendEmailCommand(params)
+      const response  = await ses.send(command)
+      console.log(response)
+    } catch (emailError) {
+      console.log('Email send error in saveEstimate (new user):', emailError)
+    }
 
     return { message: `Account created estimate sent to your email`}
     
