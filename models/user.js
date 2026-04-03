@@ -323,13 +323,6 @@ UserSchema.statics.firstEstimate = async function( email, estimate ){
   let expirationDate      = new Date()
   expirationDate.setTime(expirationDate.getTime() + 15 * 60 * 1000)
 
-  // Enforce clientEmail required
-  if (!estimate.clientEmail || !/^\S+@\S+\.\S+$/.test(estimate.clientEmail)) {
-    throw new GraphQLError('Client email is required and must be valid.', {
-      extensions: { code: 'BAD_USER_INPUT' },
-    });
-  }
-
   let userObject = {
     email: email.toLowerCase(),
     membershipID: newMembershipID,
@@ -2779,41 +2772,47 @@ UserSchema.statics.quickEstimateClient = async function( estimate ){
       var total = clientObject.adjustment
         ? String(totalEstimateAdjustedNewEstimate(clientObject))
         : String(parseInt(totalEstimate(clientObject).replace(/,/g, ''), 10).toLocaleString('en-US', { maximumFractionDigits: 0 }));
-      var emailParams = sendEstimateQuick(
-        CLIENT._id, null, 'https://middler.com',
-        estimate.clientEmail,
-        estimate.businessLogo || '',
-        estimate.businessName || '',
-        estimate.businessAddress || '',
-        estimate.estimatorName || '',
-        estimate.businessEmail || '',
-        estimate.businessPhone || '',
-        interiorTotal, exteriorTotal, cabinetTotal, total,
-        estimate.clientName || '',
-        estimate.clientPhone ? estimate.clientPhone.replace('+1', '') : '',
-        estimate.clientEmail,
-        estimate.clientPropertyAddress || '',
-        '',
-        estimate.interiorSquareFeet,
-        estimate.interiorItems,
-        estimate.interiorIndividualItems,
-        estimate.doorsAndDrawers,
-        estimate.insideCabinet,
-        estimate.exteriorSquareFeet,
-        estimate.exteriorItems,
-        estimate.exteriorIndividualItems,
-        estimate.paintBrand,
-        estimate.paintQuality,
-        estimate.warranty,
-        estimate.payments,
-        estimate.deposit,
-        estimate.painterTapeRolls,
-        estimate.plasticRolls,
-        estimate.dropCloths
-      );
-      var emailCmd = new SendEmailCommand(emailParams);
-      await ses.send(emailCmd);
-      console.log('Estimate email sent to', estimate.clientEmail);
+      const clientEmail = (estimate.clientEmail || '').trim();
+      const hasValidClientEmail = /^\S+@\S+\.\S+$/.test(clientEmail);
+      if (hasValidClientEmail) {
+        var emailParams = sendEstimateQuick(
+          CLIENT._id, null, 'https://middler.com',
+          clientEmail,
+          estimate.businessLogo || '',
+          estimate.businessName || '',
+          estimate.businessAddress || '',
+          estimate.estimatorName || '',
+          estimate.businessEmail || '',
+          estimate.businessPhone || '',
+          interiorTotal, exteriorTotal, cabinetTotal, total,
+          estimate.clientName || '',
+          estimate.clientPhone ? estimate.clientPhone.replace('+1', '') : '',
+          clientEmail,
+          estimate.clientPropertyAddress || '',
+          '',
+          estimate.interiorSquareFeet,
+          estimate.interiorItems,
+          estimate.interiorIndividualItems,
+          estimate.doorsAndDrawers,
+          estimate.insideCabinet,
+          estimate.exteriorSquareFeet,
+          estimate.exteriorItems,
+          estimate.exteriorIndividualItems,
+          estimate.paintBrand,
+          estimate.paintQuality,
+          estimate.warranty,
+          estimate.payments,
+          estimate.deposit,
+          estimate.painterTapeRolls,
+          estimate.plasticRolls,
+          estimate.dropCloths
+        );
+        var emailCmd = new SendEmailCommand(emailParams);
+        await ses.send(emailCmd);
+        console.log('Estimate email sent to', clientEmail);
+      } else {
+        console.log('Skipping quickEstimate client email: no valid clientEmail provided');
+      }
 
       // Send estimate copy to the user/business (painter)
       if (estimate.businessEmail) {
